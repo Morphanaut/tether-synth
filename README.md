@@ -188,13 +188,6 @@ If you want to contribute:
 - follow existing TypeScript patterns
 - preserve modulation safety constraints
 
-## Roadmap (High-Level)
-
-- extended modulation routing matrix
-- additional DSP processors
-- deeper patch version compatibility
-- performance profiling and optimization
-
 ## License
 
 MIT License - see LICENSE.
