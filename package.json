@@ -1,0 +1,26 @@
+{
+  "name": "tether",
+  "private": true,
+  "version": "1.0.0",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "path": "^0.12.7",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "url": "^0.11.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "@vitejs/plugin-react": "^5.1.2",
+    "@modelcontextprotocol/server-sequential-thinking": "^2025.12.18",
+    "typescript": "~5.8.2",
+    "vite": "^7.3.1"
+  }
+}

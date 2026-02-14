@@ -1,0 +1,6 @@
+{
+  "name": "Tether",
+  "version": "1.0.0",
+  "description": "TETHER - 6-voice polyphonic web synthesizer with worklet architecture.",
+  "requestFramePermissions": []
+}
