@@ -2,7 +2,7 @@
 
 Browser-based 6-voice semi-modular noise synthesizer built on the Web Audio API.
 
-TETHER began as a rapid prototyping environment for analog synth design and evolved into a modular browser DSP instrument focused on industrial textures, drones, and lo-fi dungeon-synth aesthetics.
+TETHER began as a rapid prototyping environment for analog synth design and evolved into a modular browser DSP instrument focused on industrial textures, drones, and lo-fi dungeon-synth sound.
 
 Web App: https://morphanaut.github.io/tether-synth/  
 Version: 1.0.0  
