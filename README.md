@@ -1,4 +1,4 @@
-﻿# TETHER
+# TETHER
 
 Browser-based 6-voice semi-modular noise synthesizer built on the Web Audio API.
 
@@ -13,6 +13,12 @@ License: MIT
 TETHER is designed as an exploratory synthesis platform.
 
 It combines subtractive synthesis, cross-modulation, sequencers, modulation routing, and a configurable FX chain inside a browser environment.
+
+## Compatibility Notice
+
+At the moment, the system has been tested primarily in Google Chrome. The interface is designed for 1920×1080 resolution at 100% scale and performs best in full-screen mode.
+
+There are reports that other browsers, particularly Firefox, may experience issues initializing the audio engine (AudioWorklet). Cross-browser compatibility improvements are planned for future updates.
 
 ## Core Principles
 
