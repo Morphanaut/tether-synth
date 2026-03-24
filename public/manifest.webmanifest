@@ -4,8 +4,11 @@
   "description": "Tether web-based synthesizer",
   "start_url": "./",
   "scope": "./",
-  "display": "standalone",
-  "display_override": ["fullscreen", "standalone"],
+  "display": "fullscreen",
+  "display_override": [
+    "fullscreen",
+    "standalone"
+  ],
   "orientation": "portrait",
   "background_color": "#09090b",
   "theme_color": "#09090b",
@@ -21,5 +24,6 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "id": "./"
 }
