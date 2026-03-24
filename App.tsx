@@ -739,9 +739,9 @@ export const App: React.FC = () => {
           <div className="text-center">
             <h1 className="mb-4 _t-init-title">{TEXTS.title}</h1>
             {isMobileLayout ? (
-              <h2 className="_t-init-subtitle" style={{ lineHeight: 2.4 }}>
+              <h2 className="_t-init-subtitle" style={{ lineHeight: 2.0 }}>
                 <span className="block">WEB-BASED</span>
-                <span className="block whitespace-nowrap">NOISE SYNTHESIZER</span>
+                <span className="block whitespace-nowrap" style={{ marginTop: "-2px" }}>NOISE SYNTHESIZER</span>
               </h2>
             ) : (
               <h2 className="_t-init-subtitle">{TEXTS.subtitle}</h2>
@@ -840,6 +840,7 @@ export const App: React.FC = () => {
                   triggerGate={triggerGate}
                   setTargetValue={setTargetValue}
                   setInteractionMode={setInteractionMode}
+                  layoutMode="mobile"
               />
           );
           break;

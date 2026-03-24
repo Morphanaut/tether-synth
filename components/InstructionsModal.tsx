@@ -142,10 +142,10 @@ const InstructionsModal: React.FC<InstructionsModalProps> = ({ isOpen, onClose, 
                   <Detail label="Mod Seq" text="Two 8-step modulation sequencers with target routing, direction, step editing, randomization, and independent sync options." />
               </Section>
 
-              <Section title="06. VECTOR MATRIX">
+              <Section title={isMobile ? "06. MATRIX" : "06. VECTOR MATRIX"}>
                   <Detail label="Macro Pad" text="'VECTOR MACRO' applies relative movement to all assigned pads, scaled by GLOBAL SENSITIVITY." />
                   <Detail label="Assignable Pads" text="Pads 1-4 each control X/Y targets with individual sensitivities for performance macros." />
-                  <Detail label="Gate On Click" text="Optional gate triggers can fire OSC A and/or OSC B when using matrix pads." />
+                  <Detail label={isMobile ? "Gate On Tap" : "Gate On Click"} text="Optional gate triggers can fire OSC A and/or OSC B when using matrix pads." />
               </Section>
 
               <Section title="07. FX & NOISE">

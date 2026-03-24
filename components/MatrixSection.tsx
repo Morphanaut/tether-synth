@@ -21,6 +21,7 @@ interface MatrixSectionProps {
     triggerGate: (voiceId: 1 | 2, isOpen: boolean, force?: boolean, isInstant?: boolean) => void;
     setTargetValue: (target: LfoTarget, val: number) => void;
     setInteractionMode: (mode: 'smooth' | 'instant') => void;
+    layoutMode?: 'desktop' | 'mobile';
 }
 
 const MatrixSection: React.FC<MatrixSectionProps> = React.memo(({
@@ -32,7 +33,8 @@ const MatrixSection: React.FC<MatrixSectionProps> = React.memo(({
     onMacroMove,
     triggerGate,
     setTargetValue,
-    setInteractionMode
+    setInteractionMode,
+    layoutMode = 'desktop'
 }) => {
     const [gateMode, setGateMode] = useState({ gate1: false, gate2: false });
     const [macroPos, setMacroPos] = useState({ x: 500, y: 500 });
@@ -67,19 +69,19 @@ const MatrixSection: React.FC<MatrixSectionProps> = React.memo(({
     return (
         <div className="border border-zinc-400 p-4 _b-panel">
             <div className="border-b border-zinc-800 pb-2 mb-4 flex justify-between items-end _b-widget">
-                <PanelTitle>{TEXTS.pads.matrixTitle}</PanelTitle>
+                <PanelTitle>{layoutMode === 'mobile' ? 'MATRIX' : TEXTS.pads.matrixTitle}</PanelTitle>
                 <ButtonGroup>
                     <Button 
                         onClick={() => setGateMode(p => ({...p, gate1: !p.gate1}))} 
                         active={gateMode.gate1}
                     >
-                        {TEXTS.pads.gate1Click}
+                        {layoutMode === 'mobile' ? 'GATE A ONTAP' : TEXTS.pads.gate1Click}
                     </Button>
                     <Button 
                         onClick={() => setGateMode(p => ({...p, gate2: !p.gate2}))} 
                         active={gateMode.gate2}
                     >
-                        {TEXTS.pads.gate2Click}
+                        {layoutMode === 'mobile' ? 'GATE B ONTAP' : TEXTS.pads.gate2Click}
                     </Button>
                 </ButtonGroup>
             </div>
