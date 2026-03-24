@@ -1,4 +1,4 @@
-﻿
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSynth } from './hooks/useSynth';
 import { SynthState, AssignTargets, LfoTarget } from './types';
@@ -739,7 +739,7 @@ export const App: React.FC = () => {
           <div className="text-center">
             <h1 className="mb-4 _t-init-title">{TEXTS.title}</h1>
             {isMobileLayout ? (
-              <h2 className="_t-init-subtitle">
+              <h2 className="_t-init-subtitle" style={{ lineHeight: 2.4 }}>
                 <span className="block">WEB-BASED</span>
                 <span className="block whitespace-nowrap">NOISE SYNTHESIZER</span>
               </h2>

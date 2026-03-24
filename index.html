@@ -581,6 +581,22 @@
         border-color: var(--color-button-hover-text);
       }
 
+      @media (max-width: 1024px) {
+        input[type="range"]._c-fader {
+          height: 32px;
+        }
+
+        input[type="range"]._c-fader::-webkit-slider-thumb {
+          width: 28px;
+          height: 32px;
+        }
+
+        input[type="range"]._c-fader::-moz-range-thumb {
+          width: 28px;
+          height: 32px;
+        }
+      }
+
       /* ================================================================
          STATES (_s-*)
          ================================================================ */
