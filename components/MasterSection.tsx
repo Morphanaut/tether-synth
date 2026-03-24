@@ -16,6 +16,7 @@ interface MasterSectionProps {
     updateGlobal: UpdateGlobal;
     updateOsc: UpdateOsc;
     isModalOpen?: boolean;
+    layoutMode?: 'desktop' | 'mobile';
 }
 
 const MIXER_PANEL_HEIGHT = 275;
@@ -73,25 +74,25 @@ const GraphicEQPanel: React.FC<{ eqGains: number[]; updateGlobal: UpdateGlobal; 
     );
 };
 
-const MixerPanel: React.FC<{ global: GlobalParams; osc1: OscillatorParams; osc2: OscillatorParams; updateGlobal: UpdateGlobal; updateOsc: UpdateOsc; onOpenEQ: () => void }> = ({ global, osc1, osc2, updateGlobal, updateOsc, onOpenEQ }) => {
+const MixerPanel: React.FC<{ global: GlobalParams; osc1: OscillatorParams; osc2: OscillatorParams; updateGlobal: UpdateGlobal; updateOsc: UpdateOsc; onOpenEQ: () => void; isMobile?: boolean }> = ({ global, osc1, osc2, updateGlobal, updateOsc, onOpenEQ, isMobile = false }) => {
     return (
         <div
-            className="col-span-2 border border-zinc-400 p-4 _b-panel overflow-hidden"
-            style={{ height: MIXER_PANEL_HEIGHT }}
+            className={`col-span-2 border border-zinc-400 p-4 _b-panel ${isMobile ? '' : 'overflow-hidden'}`}
+            style={isMobile ? undefined : { height: MIXER_PANEL_HEIGHT }}
         >
             <div className="border-b border-zinc-800 pb-2 mb-4 flex justify-between items-end _b-widget">
                 <PanelTitle>{TEXTS.mixer.title}</PanelTitle>
                 <div className="_t-panel-desc">{TEXTS.mixer.subTitle}</div>
             </div>
-            <div className="col-span-2 mb-6">
+            <div className={`col-span-2 ${isMobile ? 'mb-[20px] pb-[20px] border-b border-zinc-800' : 'mb-6'}`}>
                 <Row><Label>MASTER</Label><Value>{(global.masterVolume / 10.24).toFixed(0)}%</Value></Row>
                 <div className="flex gap-2 items-center">
                     <Fader value={global.masterVolume} onChange={v => updateGlobal('masterVolume', v)} className="flex-grow" />
                     <Button onClick={onOpenEQ} className="w-[34px] flex-shrink-0" title="GRAPHIC EQ">EQ</Button>
                 </div>
             </div>
-            <div className="grid grid-cols-2">
-                <div className="border-r border-zinc-800 pr-6 _b-widget">
+            <div className={isMobile ? 'grid grid-cols-1 gap-4' : 'grid grid-cols-2'}>
+                <div className={isMobile ? 'pb-4 border-b border-zinc-800 _b-widget' : 'border-r border-zinc-800 pr-6 _b-widget'}>
                     <SubSectionTitle className="mb-6">{TEXTS.mixer.ch1}</SubSectionTitle>
                     <div className="mb-4">
                         <Row><Label>{TEXTS.mixer.gain}</Label><Value>{(osc1.gain / 10.24).toFixed(0)}%</Value></Row>
@@ -108,7 +109,7 @@ const MixerPanel: React.FC<{ global: GlobalParams; osc1: OscillatorParams; osc2:
                         />
                     </div>
                 </div>
-                <div className="pl-6">
+                <div className={isMobile ? 'pt-1' : 'pl-6'}>
                     <SubSectionTitle className="mb-6">{TEXTS.mixer.ch2}</SubSectionTitle>
                     <div className="mb-4">
                         <Row><Label>{TEXTS.mixer.gain}</Label><Value>{(osc2.gain / 10.24).toFixed(0)}%</Value></Row>
@@ -131,9 +132,34 @@ const MixerPanel: React.FC<{ global: GlobalParams; osc1: OscillatorParams; osc2:
 };
 
 const MasterSection: React.FC<MasterSectionProps> = React.memo(({
-    analyserNode, global, osc1, osc2, updateGlobal, updateOsc, isModalOpen = false
+    analyserNode, global, osc1, osc2, updateGlobal, updateOsc, isModalOpen = false, layoutMode = 'desktop'
 }) => {
     const [showEQ, setShowEQ] = useState(false);
+
+    if (layoutMode === 'mobile') {
+        return (
+            <div className="flex flex-col gap-4">
+                {showEQ ? (
+                    <GraphicEQPanel
+                        eqGains={global.eqGains || [512,512,512,512,512,512,512]}
+                        updateGlobal={updateGlobal}
+                        onClose={() => setShowEQ(false)}
+                    />
+                ) : (
+                    <MixerPanel
+                        global={global}
+                        osc1={osc1}
+                        osc2={osc2}
+                        updateGlobal={updateGlobal}
+                        updateOsc={updateOsc}
+                        onOpenEQ={() => setShowEQ(true)}
+                        isMobile
+                    />
+                )}
+                <RecorderPanel analyserNode={analyserNode} className="mb-0" isModalOpen={isModalOpen} layoutMode="mobile" />
+            </div>
+        );
+    }
 
     return (
         <div className="flex-shrink-0 border-t border-zinc-800 bg-black p-6 z-20">

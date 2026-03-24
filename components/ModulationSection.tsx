@@ -11,6 +11,7 @@ interface LfoSectionProps {
   osc2Wave: Waveform;
   updateLfo: <K extends keyof LfoParams>(id: 1 | 2, key: K, value: LfoParams[K]) => void;
   onTapTempo: (id: 1 | 2) => void;
+  layoutMode?: 'desktop' | 'mobile';
 }
 
 const isPwmTargetAllowed = (target: LfoTarget, osc1Wave: Waveform, osc2Wave: Waveform): boolean => {
@@ -19,7 +20,7 @@ const isPwmTargetAllowed = (target: LfoTarget, osc1Wave: Waveform, osc2Wave: Wav
   return true;
 };
 
-const LfoPanel: React.FC<LfoSectionProps> = React.memo(({ lfo1, lfo2, osc1Wave, osc2Wave, updateLfo, onTapTempo }) => {
+const LfoPanel: React.FC<LfoSectionProps> = React.memo(({ lfo1, lfo2, osc1Wave, osc2Wave, updateLfo, onTapTempo, layoutMode = 'desktop' }) => {
   const renderTargetOptions = (id: 1 | 2) => {
     const allowedTargets = LFO_TARGET_VALUES.filter(t => {
         if (!isPwmTargetAllowed(t, osc1Wave, osc2Wave)) return false;
@@ -69,41 +70,43 @@ const LfoPanel: React.FC<LfoSectionProps> = React.memo(({ lfo1, lfo2, osc1Wave, 
             </ButtonGroup>
         </div>
 
-        {state.rateMode === 'free' ? (
-            <div className="animate-in fade-in">
-                <Row><Label>{TEXTS.lfo.rate}</Label><Value>{mapLfoRate(state.rate).toFixed(2)} Hz</Value></Row>
-                <Fader value={state.rate} onChange={v => updateLfo(id, 'rate', v)} />
-            </div>
-        ) : (
-            <div className="flex flex-col gap-4 animate-in fade-in">
-                <div>
-                    <Row><Label>{TEXTS.delay.bpm}</Label><Value>{state.bpm}</Value></Row>
-                    <Fader min={30} max={300} value={state.bpm} onChange={v => updateLfo(id, 'bpm', v)} />
+        <div className={`${layoutMode === 'mobile' ? 'pt-4 border-t border-zinc-800 ' : ''}flex flex-col gap-4`}>
+            {state.rateMode === 'free' ? (
+                <div className="animate-in fade-in">
+                    <Row><Label>{TEXTS.lfo.rate}</Label><Value>{mapLfoRate(state.rate).toFixed(2)} Hz</Value></Row>
+                    <Fader value={state.rate} onChange={v => updateLfo(id, 'rate', v)} />
                 </div>
-                <div className="flex gap-2 items-end">
-                    <div className="flex-grow">
-                        <Label className="block mb-1.5">{TEXTS.lfo.div}</Label>
-                        <Select 
-                            value={state.rateDivision} 
-                            onChange={v => updateLfo(id, 'rateDivision', v as DelayDivision)} 
-                            options={DELAY_DIVISIONS.map(d => ({ label: d.label, value: d.value }))}
-                        />
+            ) : (
+                <div className="flex flex-col gap-4 animate-in fade-in">
+                    <div>
+                        <Row><Label>{TEXTS.delay.bpm}</Label><Value>{state.bpm}</Value></Row>
+                        <Fader min={30} max={300} value={state.bpm} onChange={v => updateLfo(id, 'bpm', v)} />
                     </div>
-                    <Button onClick={() => onTapTempo(id)}>TAP</Button>
+                    <div className="flex gap-2 items-end">
+                        <div className="flex-grow">
+                            <Label className="block mb-1.5">{TEXTS.lfo.div}</Label>
+                            <Select 
+                                value={state.rateDivision} 
+                                onChange={v => updateLfo(id, 'rateDivision', v as DelayDivision)} 
+                                options={DELAY_DIVISIONS.map(d => ({ label: d.label, value: d.value }))}
+                            />
+                        </div>
+                        <Button onClick={() => onTapTempo(id)}>TAP</Button>
+                    </div>
                 </div>
+            )}
+
+            <div>
+                <Row><Label>{TEXTS.lfo.depth}</Label><Value>{Math.round(state.depth / 10.24)}%</Value></Row>
+                <Fader value={state.depth} onChange={v => updateLfo(id, 'depth', v)} />
             </div>
-        )}
 
-        <div>
-            <Row><Label>{TEXTS.lfo.depth}</Label><Value>{Math.round(state.depth / 10.24)}%</Value></Row>
-            <Fader value={state.depth} onChange={v => updateLfo(id, 'depth', v)} />
-        </div>
-
-        <div>
-            <Label className="block mb-1.5">{TEXTS.lfo.target}</Label>
-            <Select value={state.target} onChange={v => updateLfo(id, 'target', v as LfoParams['target'])}>
-                {renderTargetOptions(id)}
-            </Select>
+            <div>
+                <Label className="block mb-1.5">{TEXTS.lfo.target}</Label>
+                <Select value={state.target} onChange={v => updateLfo(id, 'target', v as LfoParams['target'])}>
+                    {renderTargetOptions(id)}
+                </Select>
+            </div>
         </div>
     </div>
   );
@@ -114,11 +117,11 @@ const LfoPanel: React.FC<LfoSectionProps> = React.memo(({ lfo1, lfo2, osc1Wave, 
         <PanelTitle>{TEXTS.lfo.sectionTitle}</PanelTitle>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2">
-        <div className="relative pb-6 mb-6 md:pb-0 md:mb-0 md:pr-6 md:border-r border-zinc-800">
+        <div className="relative pb-4 mb-4 border-b border-zinc-800 md:border-b-0 md:pb-0 md:mb-0 md:pr-6 md:border-r">
             <SubSectionTitle className="mb-3">{TEXTS.lfo.title} 1</SubSectionTitle>
             {renderControls(1, lfo1)}
         </div>
-        <div className="md:pl-6 pt-6 md:pt-0">
+        <div className="md:pl-6 pt-4 md:pt-0">
             <SubSectionTitle className="mb-3">{TEXTS.lfo.title} 2</SubSectionTitle>
             {renderControls(2, lfo2)}
         </div>
@@ -130,16 +133,17 @@ const LfoPanel: React.FC<LfoSectionProps> = React.memo(({ lfo1, lfo2, osc1Wave, 
 interface CrossModProps {
     oscMod: SynthState['oscMod'];
     updateModPath: <K extends keyof ModPathParams>(path: 'osc1to2' | 'osc2to1', key: K, value: ModPathParams[K]) => void;
+    layoutMode?: 'desktop' | 'mobile';
 }
 
-const CrossModPanel: React.FC<CrossModProps> = React.memo(({ oscMod, updateModPath }) => {
+const CrossModPanel: React.FC<CrossModProps> = React.memo(({ oscMod, updateModPath, layoutMode = 'desktop' }) => {
     return (
         <div className="border border-zinc-400 p-4 _b-panel">
             <div className="border-b border-zinc-800 pb-2 mb-4 flex justify-between items-end _b-widget">
                 <PanelTitle>{TEXTS.mod.title}</PanelTitle>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2">
-                <div className="relative pb-6 mb-6 md:pb-0 md:mb-0 md:pr-6 md:border-r border-zinc-800">
+                <div className="relative pb-4 mb-4 border-b border-zinc-800 md:border-b-0 md:pb-0 md:mb-0 md:pr-6 md:border-r">
                     <SubSectionTitle className="mb-3">{TEXTS.osc.title} A {TEXTS.mod.to} {TEXTS.osc.title} B</SubSectionTitle>
                     <div className="flex justify-between items-center mb-6">
                         <ButtonGroup>
@@ -149,16 +153,18 @@ const CrossModPanel: React.FC<CrossModProps> = React.memo(({ oscMod, updateModPa
                             {MOD_SOURCES.map(s => <Button key={s.value} onClick={() => updateModPath('osc1to2', 'source', s.value)} active={oscMod.osc1to2.source === s.value}>{TEXTS.mod[s.labelKey]}</Button>)}
                         </ButtonGroup>
                     </div>
-                    <div className="mb-4">
-                        <Row><Label>{TEXTS.mod.amount}</Label><Value>{Math.round(oscMod.osc1to2.amount / 10.24)}%</Value></Row>
-                        <Fader value={oscMod.osc1to2.amount} onChange={v => updateModPath('osc1to2', 'amount', v)} />
-                    </div>
-                    <div className={`${oscMod.osc1to2.type !== 'fm' ? 'opacity-30 pointer-events-none' : ''}`}>
-                        <Row><Label>{TEXTS.mod.range}</Label><Value>{Math.round(mapFmDeviation(oscMod.osc1to2.range))} Hz</Value></Row>
-                        <Fader value={oscMod.osc1to2.range} onChange={v => updateModPath('osc1to2', 'range', v)} />
+                    <div className={layoutMode === 'mobile' ? 'pt-4 border-t border-zinc-800' : ''}>
+                        <div className="mb-4">
+                            <Row><Label>{TEXTS.mod.amount}</Label><Value>{Math.round(oscMod.osc1to2.amount / 10.24)}%</Value></Row>
+                            <Fader value={oscMod.osc1to2.amount} onChange={v => updateModPath('osc1to2', 'amount', v)} />
+                        </div>
+                        <div className={`${oscMod.osc1to2.type !== 'fm' ? 'opacity-30 pointer-events-none' : ''}`}>
+                            <Row><Label>{TEXTS.mod.range}</Label><Value>{Math.round(mapFmDeviation(oscMod.osc1to2.range))} Hz</Value></Row>
+                            <Fader value={oscMod.osc1to2.range} onChange={v => updateModPath('osc1to2', 'range', v)} />
+                        </div>
                     </div>
                 </div>
-                <div className="md:pl-6 pt-6 md:pt-0">
+                <div className="md:pl-6 pt-4 md:pt-0">
                     <SubSectionTitle className="mb-3">{TEXTS.osc.title} B {TEXTS.mod.to} {TEXTS.osc.title} A</SubSectionTitle>
                     <div className="flex justify-between items-center mb-6">
                         <ButtonGroup>
@@ -168,13 +174,15 @@ const CrossModPanel: React.FC<CrossModProps> = React.memo(({ oscMod, updateModPa
                             {MOD_SOURCES.map(s => <Button key={s.value} onClick={() => updateModPath('osc2to1', 'source', s.value)} active={oscMod.osc2to1.source === s.value}>{TEXTS.mod[s.labelKey]}</Button>)}
                         </ButtonGroup>
                     </div>
-                    <div className="mb-4">
-                        <Row><Label>{TEXTS.mod.amount}</Label><Value>{Math.round(oscMod.osc2to1.amount / 10.24)}%</Value></Row>
-                        <Fader value={oscMod.osc2to1.amount} onChange={v => updateModPath('osc2to1', 'amount', v)} />
-                    </div>
-                    <div className={`${oscMod.osc2to1.type !== 'fm' ? 'opacity-30 pointer-events-none' : ''}`}>
-                        <Row><Label>{TEXTS.mod.range}</Label><Value>{Math.round(mapFmDeviation(oscMod.osc2to1.range))} Hz</Value></Row>
-                        <Fader value={oscMod.osc2to1.range} onChange={v => updateModPath('osc2to1', 'range', v)} />
+                    <div className={layoutMode === 'mobile' ? 'pt-4 border-t border-zinc-800' : ''}>
+                        <div className="mb-4">
+                            <Row><Label>{TEXTS.mod.amount}</Label><Value>{Math.round(oscMod.osc2to1.amount / 10.24)}%</Value></Row>
+                            <Fader value={oscMod.osc2to1.amount} onChange={v => updateModPath('osc2to1', 'amount', v)} />
+                        </div>
+                        <div className={`${oscMod.osc2to1.type !== 'fm' ? 'opacity-30 pointer-events-none' : ''}`}>
+                            <Row><Label>{TEXTS.mod.range}</Label><Value>{Math.round(mapFmDeviation(oscMod.osc2to1.range))} Hz</Value></Row>
+                            <Fader value={oscMod.osc2to1.range} onChange={v => updateModPath('osc2to1', 'range', v)} />
+                        </div>
                     </div>
                 </div>
             </div>
@@ -244,17 +252,21 @@ const ModEnvelopePanel: React.FC<ModEnvelopeProps> = React.memo(({ modEnv1, modE
 
     return (
         <div className="border border-zinc-400 p-4 _b-panel">
-            <div className={`border-b border-zinc-800 pb-2 mb-4 flex justify-between items-end _b-widget`}>
-                <PanelTitle>{TEXTS.modEnv.title}</PanelTitle>
-                <div className="_t-panel-desc">{TEXTS.modEnv.subTitle}</div>
+            <div className="border-b border-zinc-800 pb-2 mb-4 flex flex-col items-start gap-1 md:flex-row md:justify-between md:items-end md:gap-0 _b-widget">
+                <div className="whitespace-nowrap">
+                    <PanelTitle>{TEXTS.modEnv.title}</PanelTitle>
+                </div>
+                <div className="_t-panel-desc whitespace-nowrap hidden md:block">
+                    <span>{TEXTS.modEnv.subTitle}</span>
+                </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2">
-                <div className="relative pb-6 mb-6 md:pb-0 md:mb-0 md:pr-6 md:border-r border-zinc-800">
-                    <SubSectionTitle className="mb-6">{TEXTS.modEnv.mod1}</SubSectionTitle>
+                <div className="relative pb-4 mb-4 border-b border-zinc-800 md:border-b-0 md:pb-0 md:mb-0 md:pr-6 md:border-r">
+                    <SubSectionTitle className="mb-4 md:mb-6">{TEXTS.modEnv.mod1}</SubSectionTitle>
                     {renderControls(1, modEnv1)}
                 </div>
-                <div className="md:pl-6 pt-6 md:pt-0">
-                    <SubSectionTitle className="mb-6">{TEXTS.modEnv.mod2}</SubSectionTitle>
+                <div className="md:pl-6 pt-4 md:pt-0">
+                    <SubSectionTitle className="mb-4 md:mb-6">{TEXTS.modEnv.mod2}</SubSectionTitle>
                     {renderControls(2, modEnv2)}
                 </div>
             </div>
@@ -274,11 +286,12 @@ interface ModulationSectionProps {
     updateModPath: <K extends keyof ModPathParams>(path: 'osc1to2' | 'osc2to1', key: K, value: ModPathParams[K]) => void;
     updateModEnv: <K extends keyof ModEnvelopeParams>(id: 1 | 2, key: K, value: ModEnvelopeParams[K]) => void;
     onLfoTapTempo: (id: 1 | 2) => void;
+    layoutMode?: 'desktop' | 'mobile';
 }
 
 const ModulationSection: React.FC<ModulationSectionProps> = React.memo(({
     lfo1, lfo2, osc1Wave, osc2Wave, oscMod, modEnv1, modEnv2,
-    updateLfo, updateModPath, updateModEnv, onLfoTapTempo
+    updateLfo, updateModPath, updateModEnv, onLfoTapTempo, layoutMode = 'desktop'
 }) => {
     return (
         <div className="animate-in fade-in duration-300 flex flex-col gap-6">
@@ -289,8 +302,9 @@ const ModulationSection: React.FC<ModulationSectionProps> = React.memo(({
                 osc2Wave={osc2Wave}
                 updateLfo={updateLfo}
                 onTapTempo={onLfoTapTempo}
+                layoutMode={layoutMode}
             />
-            <CrossModPanel oscMod={oscMod} updateModPath={updateModPath} />
+            <CrossModPanel oscMod={oscMod} updateModPath={updateModPath} layoutMode={layoutMode} />
             <ModEnvelopePanel
                 modEnv1={modEnv1}
                 modEnv2={modEnv2}

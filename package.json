@@ -1,7 +1,7 @@
 {
   "name": "tether",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -19,7 +19,9 @@
   "devDependencies": {
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.1.2",
-    "@modelcontextprotocol/server-sequential-thinking": "^2025.12.18",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.17",
     "typescript": "~5.8.2",
     "vite": "^7.3.1"
   }

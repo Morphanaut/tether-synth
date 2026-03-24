@@ -2,7 +2,7 @@
 import { MODAL } from '../data/constants';
 import { useModalDismiss } from '../hooks/useModalDismiss';
 
-interface InstructionsModalProps { isOpen: boolean; onClose: () => void; }
+interface InstructionsModalProps { isOpen: boolean; onClose: () => void; isMobile?: boolean; }
 
 const KeyCap: React.FC<{ char: string; label?: string; wide?: boolean; }> = ({ char, label, wide = false }) => (
     <div className="flex flex-col items-center gap-1.5">
@@ -29,7 +29,7 @@ const Detail: React.FC<{ label: string; text: string | React.ReactNode }> = ({ l
     </div>
 );
 
-const InstructionsModal: React.FC<InstructionsModalProps> = ({ isOpen, onClose }) => {
+const InstructionsModal: React.FC<InstructionsModalProps> = ({ isOpen, onClose, isMobile = false }) => {
   const { handleOverlayPointerDown, handleOverlayClick, handlePanelPointerDown, handlePanelClick } =
     useModalDismiss({ isOpen, onClose, overlayCloseCooldownMs: 180 });
 
@@ -40,48 +40,93 @@ const InstructionsModal: React.FC<InstructionsModalProps> = ({ isOpen, onClose }
        <div className={`${MODAL.LAYOUT.PANEL} w-full max-w-5xl max-h-[90vh]`} onPointerDown={handlePanelPointerDown} onClick={handlePanelClick}>
           <div className={MODAL.LAYOUT.HEADER}>
              <div className="flex items-center gap-3">
-                <h2 className={MODAL.TYPO.TITLE}>TETHER // USER MANUAL</h2>
+                <h2 className={MODAL.TYPO.TITLE}>{isMobile ? 'USER MANUAL' : 'TETHER // USER MANUAL'}</h2>
              </div>
              <button onClick={onClose} className="_c-btn-close">CLOSE</button>
           </div>
           <div className={MODAL.LAYOUT.BODY}>
               
               <Section title="01. STARTUP">
-                  <Detail label="Environment" text="Use a modern browser (Chrome/Edge recommended). Audio settings like sample rate follow your device/browser defaults." />
+                  <Detail
+                      label="Environment"
+                      text={isMobile
+                          ? "Use a modern mobile browser (Safari/Chrome). On iPhone, tap Share -> Add to Home Screen, then open Tether from the Home Screen icon. This launches it in fullscreen standalone mode (app-like workflow without regular browser chrome), which is better for focused touch performance."
+                          : "Use a modern browser (Chrome/Edge recommended). Audio settings like sample rate follow your device/browser defaults."}
+                  />
               </Section>
 
-              <Section title="02. KEYBOARD & GATE">
-                  <div className="bg-black/40 p-6 border border-zinc-800 _b-widget border mb-4">
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-                          <div className="flex flex-col gap-6">
-                              <span className={MODAL.TYPO.DT}>VOICE A (LOWER MANUAL)</span>
-                              <div className="flex gap-1.5 flex-wrap">
-                                  {['Z', 'S', 'X', 'D', 'C', 'V', 'G', 'B', 'H', 'N', 'J', 'M', ','].map((k, i) =>
-                                      <KeyCap key={k} char={k} label={['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B', 'C'][i]} />
-                                  )}
+              <Section title={isMobile ? "02. MOBILE KEYBOARD" : "02. KEYBOARD & GATE"}>
+                  {isMobile ? (
+                      <>
+                          <Detail
+                              label="Open Keyboard"
+                              text="Open the Keyboard screen from the mobile bottom menu. The keyboard opens as a dedicated full-screen control surface."
+                          />
+                          <Detail
+                              label="Orientation"
+                              text="If rotation warning appears, rotate the phone to landscape and continue. Keyboard play is available only after landscape confirmation."
+                          />
+                          <Detail
+                              label="Top Controls"
+                              text="Use OSC A / OSC B mode buttons (KBD, DRONE, OFF), OCT -, OCT +, and MONO/POLY/HOLD directly in the top keyboard bar."
+                          />
+                          <Detail
+                              label="Play Logic"
+                              text="Tap keys to trigger notes, then slide across keys for continuous performance. In MONO one note is active; in POLY up to 6 notes can be active."
+                          />
+                          <Detail
+                              label="Hold"
+                              text="HOLD latches notes. Tapping the same held key again removes its latch. In MONO, latch follows one active note; in POLY, latches can stack up to polyphony limit."
+                          />
+                          <Detail
+                              label="Quick Controls"
+                              text="The mobile keyboard screen includes assignable macro faders with target selectors, so you can tweak core synth parameters while playing."
+                          />
+                          <Detail
+                              label="Exit"
+                              text="Use the chevron-back icon in the top bar to close keyboard view and return to the previous mobile section."
+                          />
+                      </>
+                  ) : (
+                      <>
+                          <div className="bg-black/40 p-6 border border-zinc-800 _b-widget border mb-4">
+                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                                  <div className="flex flex-col gap-6">
+                                      <span className={MODAL.TYPO.DT}>VOICE A (LOWER MANUAL)</span>
+                                      <div className="flex gap-1.5 flex-wrap">
+                                          {['Z', 'S', 'X', 'D', 'C', 'V', 'G', 'B', 'H', 'N', 'J', 'M', ','].map((k, i) =>
+                                              <KeyCap key={k} char={k} label={['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B', 'C'][i]} />
+                                          )}
+                                      </div>
+                                      <div className="mt-2"><KeyCap char="A" label="GATE TRIGGER A" wide /></div>
+                                  </div>
+                                  <div className="flex flex-col gap-6">
+                                      <span className={MODAL.TYPO.DT}>VOICE B (UPPER MANUAL)</span>
+                                      <div className="flex gap-1.5 flex-wrap">
+                                          {['Q', '2', 'W', '3', 'E', 'R', '5', 'T', '6', 'Y', '7', 'U', 'I'].map((k, i) =>
+                                              <KeyCap key={k} char={k} label={['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B', 'C'][i]} />
+                                          )}
+                                      </div>
+                                      <div className="mt-2"><KeyCap char="F" label="GATE TRIGGER B" wide /></div>
+                                  </div>
                               </div>
-                              <div className="mt-2"><KeyCap char="A" label="GATE TRIGGER A" wide /></div>
                           </div>
-                          <div className="flex flex-col gap-6">
-                              <span className={MODAL.TYPO.DT}>VOICE B (UPPER MANUAL)</span>
-                              <div className="flex gap-1.5 flex-wrap">
-                                  {['Q', '2', 'W', '3', 'E', 'R', '5', 'T', '6', 'Y', '7', 'U', 'I'].map((k, i) =>
-                                      <KeyCap key={k} char={k} label={['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B', 'C'][i]} />
-                                  )}
-                              </div>
-                              <div className="mt-2"><KeyCap char="F" label="GATE TRIGGER B" wide /></div>
-                          </div>
-                      </div>
-                  </div>
-                  <Detail label="KBD Mode" text="Note keys work when the corresponding oscillator has 'KBD' enabled and neither DRONE nor VOICE SEQ is active." />
-                  <Detail label="Gate Keys" text="'A' and 'F' trigger gate manually for OSC A / OSC B." />
+                          <Detail label="KBD Mode" text="Note keys work when the corresponding oscillator has 'KBD' enabled and neither DRONE nor VOICE SEQ is active." />
+                          <Detail label="Gate Keys" text="'A' and 'F' trigger gate manually for OSC A / OSC B." />
+                      </>
+                  )}
               </Section>
 
               <Section title="03. VOICE CORE">
                   <Detail label="Oscillators" text="Two oscillators (A/B) with SIN, TRI, SAW, and SQR waveforms." />
                   <Detail label="Filters" text="Each voice has both HP and LP filters, each with cutoff and resonance controls." />
                   <Detail label="Envelopes" text="Amp envelopes are Attack/Release per voice." />
-                  <Detail label="Pitch Control" text="In free mode, use FREQ directly. In KBD/MIDI/SEQ workflows, use SCALE, FINE TUNE, and GLIDE." />
+                  <Detail
+                      label="Pitch Control"
+                      text={isMobile
+                          ? "In free mode, use FREQ directly. In KBD/SEQ workflows, use SCALE, FINE TUNE, and GLIDE."
+                          : "In free mode, use FREQ directly. In KBD/MIDI/SEQ workflows, use SCALE, FINE TUNE, and GLIDE."}
+                  />
                   <Detail label="Pulse Width" text="PULSE WIDTH appears only for SQR and moves one-way from 50% down to 0%." />
               </Section>
 
@@ -113,7 +158,9 @@ const InstructionsModal: React.FC<InstructionsModalProps> = ({ isOpen, onClose }
               <Section title="08. MIXER & ANALYSIS">
                   <Detail label="Mixer" text="Master level + per-channel gain/pan for OSC A and OSC B." />
                   <Detail label="Graphic EQ" text="7-band master EQ is available from the MIXER panel via the 'EQ' button." />
-                  <Detail label="Visualizers" text="Real-time oscilloscope and spectrum analyzer are shown in the bottom-left visualizer panel." />
+                  {!isMobile && (
+                      <Detail label="Visualizers" text="Real-time oscilloscope and spectrum analyzer are shown in the bottom-left visualizer panel." />
+                  )}
               </Section>
 
               <Section title="09. TAPE DECK">
@@ -122,15 +169,17 @@ const InstructionsModal: React.FC<InstructionsModalProps> = ({ isOpen, onClose }
                   <Detail label="Speed & Export" text="Use SPEED (0.2x-1.8x) and export as RAW, LOOP, or SPEED WAV depending on your workflow." />
               </Section>
 
-              <Section title="10. SAVE, LOAD, MIDI">
+              <Section title={isMobile ? "10. SAVE & LOAD" : "10. SAVE, LOAD, MIDI"}>
                   <Detail label="Patch Save/Load" text="Main SAVE/LOAD stores synth parameters, matrix assignments, and matrix sensitivities in JSON patch files." />
                   <Detail label="Recorder Data" text="Patch files do not contain recorded audio. Export audio separately from TAPE DECK." />
-                  <Detail label="MIDI Config" text="MIDI panel supports device selection, monophonic/polyphonic (6-voice) note handling, CC learn mapping, MIN/MAX scaling, and map save/load." />
+                  {!isMobile && (
+                      <Detail label="MIDI Config" text="MIDI panel supports device selection, monophonic/polyphonic (6-voice) note handling, CC learn mapping, MIN/MAX scaling, and map save/load." />
+                  )}
               </Section>
 
           </div>
           <div className={`${MODAL.LAYOUT.FOOTER} text-center flex justify-center items-center`}>
-              <p className={MODAL.TYPO.FOOTNOTE}>TETHER // WEB-BASED NOISE SYNTHESIZER // SYSTEM ARCHITECTURE BY MORPHANAUT // 2026 // v1.0.0</p>
+              <p className={MODAL.TYPO.FOOTNOTE}>TETHER // WEB-BASED NOISE SYNTHESIZER // SYSTEM ARCHITECTURE BY MORPHANAUT // 2026 // v1.1.0</p>
           </div>
        </div>
     </div>

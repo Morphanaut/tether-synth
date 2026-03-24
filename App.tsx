@@ -10,13 +10,39 @@ import AppHeader from './components/AppHeader';
 import VoiceSection from './components/VoiceSection';
 import RackSection from './components/RackSection';
 import MasterSection from './components/MasterSection';
+import ModulationSection from './components/ModulationSection';
+import VoiceSequencerSection from './components/VoiceSequencerSection';
+import ModSequencerSection from './components/ModSequencerSection';
+import MatrixSection from './components/MatrixSection';
+import EffectsSection from './components/EffectsSection';
+import MobileKeyboardOverlay from './components/MobileKeyboardOverlay';
 import { useAppParamActions } from './hooks/useAppParamActions';
 import { createTargetValueSetter, applyTargetDelta } from './utils/targetValueUtils';
 import { parsePatchData, savePatchFile } from './utils/patchIO';
-import { TEXTS, DEFAULT_PARAMS, DEFAULT_SENSITIVITIES, DEFAULT_ASSIGN_TARGETS } from './data/constants';
+import { TEXTS, DEFAULT_PARAMS, DEFAULT_SENSITIVITIES, DEFAULT_ASSIGN_TARGETS, OCTAVE_FOOTAGE } from './data/constants';
 import { warnOnceInDev } from './utils/devDiagnostics';
+import { triggerMobileHaptic } from './utils/haptics';
 
 type ActiveModal = 'none' | 'manual' | 'midi' | 'about';
+type MobileTab = 'oscillators' | 'modulation' | 'sequencers' | 'matrix' | 'effects' | 'mix-record';
+type MobileMenuVisualState = 'entering' | 'open' | 'closing-right';
+type MobileKeyboardOscMode = 'kbd' | 'drone' | 'off';
+
+const MOBILE_TABS: Array<{ key: MobileTab; label: string }> = [
+  { key: 'oscillators', label: 'Osc' },
+  { key: 'modulation', label: 'Mod' },
+  { key: 'sequencers', label: 'Seq' },
+  { key: 'matrix', label: 'Matrix' },
+  { key: 'effects', label: 'FX' },
+  { key: 'mix-record', label: 'Mix' }
+];
+const MOBILE_TOP_MENU_HEIGHT = 49;
+const MOBILE_BOTTOM_MENU_HEIGHT = 112;
+const MOBILE_MENU_ANIMATION_MS = 180;
+const MOBILE_KEYBOARD_CONTROL_FADERS_DEFAULT: Array<{ target: LfoTarget; value: number }> = Array.from(
+    { length: 4 },
+    () => ({ target: 'none' as LfoTarget, value: 512 })
+);
 
 export const App: React.FC = () => {
   const logoUrl = `${import.meta.env.BASE_URL}logo.png`;
@@ -28,11 +54,29 @@ export const App: React.FC = () => {
   const [activeModal, setActiveModal] = useState<ActiveModal>('none');
   const [showScreenWarning, setShowScreenWarning] = useState(false);
   const [appNotice, setAppNotice] = useState<string | null>(null);
+  const [isMobileLayout, setIsMobileLayout] = useState<boolean>(() => (
+      typeof window !== 'undefined' ? window.innerWidth <= 1024 : false
+  ));
+  const [mobileActiveTab, setMobileActiveTab] = useState<MobileTab>('oscillators');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [mobileMenuVisualState, setMobileMenuVisualState] = useState<MobileMenuVisualState>('open');
+  const [isMobileKeyboardOpen, setIsMobileKeyboardOpen] = useState(false);
+  const [mobileKeyboardPolyphonic, setMobileKeyboardPolyphonic] = useState(false);
+  const [mobileKeyboardControlFaders, setMobileKeyboardControlFaders] = useState<Array<{ target: LfoTarget; value: number }>>(
+      () => MOBILE_KEYBOARD_CONTROL_FADERS_DEFAULT.map(item => ({ ...item }))
+  );
+  const [isMobileContentAtTop, setIsMobileContentAtTop] = useState(true);
+  const [isMobileContentAtBottom, setIsMobileContentAtBottom] = useState(false);
   const showInfo = activeModal === 'manual';
   const showMidi = activeModal === 'midi';
   const showAbout = activeModal === 'about';
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const mobileContentRef = useRef<HTMLDivElement>(null);
+  const mobileMenuSwipeRef = useRef<{ startX: number; startY: number; pointerId: number } | null>(null);
+  const mobileMenuCloseTimerRef = useRef<number | null>(null);
+  const mobileLastTabRef = useRef<MobileTab>('oscillators');
+  const mobileKeyboardControlFadersRef = useRef(mobileKeyboardControlFaders);
   const notifyUiControlRef = useRef<() => void>(() => {});
   const appNoticeTimerRef = useRef<number | null>(null);
   const closeActiveModal = useCallback(() => setActiveModal('none'), []);
@@ -64,6 +108,7 @@ export const App: React.FC = () => {
       currentStep1, currentStep2, currentStepMod1, currentStepMod2, 
       manualSeqStep, syncSequencers, resetSequencer, 
       manualModSeqStep, resetModSequencer, syncModToMaster, syncModSequencers, 
+      triggerMobileKeyboardNote, releaseMobileKeyboardNotes,
       handleTapTempo,
       isVOctGateActive1, isVOctGateActive2,
       midiAccess, midiConfig, updateMidiConfig, midiInputs,
@@ -72,8 +117,30 @@ export const App: React.FC = () => {
   } = useSynth(params, interactionMode, setTargetValue);
   
   useEffect(() => {
+      const handleResize = () => {
+          setIsMobileLayout(window.innerWidth <= 1024);
+      };
+      handleResize();
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
       notifyUiControlRef.current = notifyUiControl;
   }, [notifyUiControl]);
+
+  useEffect(() => {
+      mobileKeyboardControlFadersRef.current = mobileKeyboardControlFaders;
+  }, [mobileKeyboardControlFaders]);
+
+  useEffect(() => {
+      return () => {
+          if (mobileMenuCloseTimerRef.current !== null) {
+              window.clearTimeout(mobileMenuCloseTimerRef.current);
+              mobileMenuCloseTimerRef.current = null;
+          }
+      };
+  }, []);
 
   useEffect(() => {
       if (activeModal === 'midi' && !midiAccess) {
@@ -82,15 +149,40 @@ export const App: React.FC = () => {
   }, [activeModal, midiAccess]);
 
   useEffect(() => {
-      if (isStarted) {
-          const checkSize = () => {
-              if (window.innerWidth < 1280 || window.innerHeight < 700) {
-                  setShowScreenWarning(true);
-              }
-          };
-          checkSize();
+      if (isMobileLayout && activeModal === 'midi') {
+          setActiveModal('none');
       }
-  }, [isStarted]);
+      if (!isMobileLayout) {
+          if (mobileMenuCloseTimerRef.current !== null) {
+              window.clearTimeout(mobileMenuCloseTimerRef.current);
+              mobileMenuCloseTimerRef.current = null;
+          }
+          mobileMenuSwipeRef.current = null;
+          setMobileMenuVisualState('open');
+          setIsMobileMenuOpen(false);
+          setIsMobileKeyboardOpen(false);
+      }
+  }, [isMobileLayout, activeModal]);
+
+  useEffect(() => {
+      if (!isMobileLayout) {
+          releaseMobileKeyboardNotes();
+      }
+  }, [isMobileLayout, releaseMobileKeyboardNotes]);
+
+  useEffect(() => {
+      if (!isStarted) return;
+      if (isMobileLayout) {
+          setShowScreenWarning(false);
+          return;
+      }
+      const checkSize = () => {
+          if (window.innerWidth < 1280 || window.innerHeight < 700) {
+              setShowScreenWarning(true);
+          }
+      };
+      checkSize();
+  }, [isStarted, isMobileLayout]);
 
   useEffect(() => {
       setParams(prev => {
@@ -275,6 +367,225 @@ export const App: React.FC = () => {
   };
 
   const handleLoadClick = () => { if (fileInputRef.current) fileInputRef.current.click(); };
+  const openMobileKeyboard = useCallback(() => {
+      mobileLastTabRef.current = mobileActiveTab;
+      releaseMobileKeyboardNotes();
+      triggerGate(1, false, true);
+      triggerGate(2, false, true);
+      setParams(prev => {
+          const nextOsc1 = (prev.osc1.voltOct && !prev.osc1.drone && !prev.osc1.midi)
+              ? prev.osc1
+              : {
+                  ...prev.osc1,
+                  voltOct: true,
+                  drone: false,
+                  midi: false,
+                  octave: prev.osc1.voltOct ? prev.osc1.octave : 0
+              };
+          const nextOsc2 = (prev.osc2.voltOct && !prev.osc2.drone && !prev.osc2.midi)
+              ? prev.osc2
+              : {
+                  ...prev.osc2,
+                  voltOct: true,
+                  drone: false,
+                  midi: false,
+                  octave: prev.osc2.voltOct ? prev.osc2.octave : 0
+              };
+          if (nextOsc1 === prev.osc1 && nextOsc2 === prev.osc2) return prev;
+          return { ...prev, osc1: nextOsc1, osc2: nextOsc2 };
+      });
+      setIsMobileKeyboardOpen(true);
+      if (mobileMenuCloseTimerRef.current !== null) {
+          window.clearTimeout(mobileMenuCloseTimerRef.current);
+          mobileMenuCloseTimerRef.current = null;
+      }
+      mobileMenuSwipeRef.current = null;
+      setMobileMenuVisualState('open');
+      setIsMobileMenuOpen(false);
+      if (typeof document !== 'undefined' && document.documentElement.requestFullscreen) {
+          document.documentElement.requestFullscreen().catch(() => {
+              // Some mobile browsers block fullscreen; keyboard overlay still works.
+          });
+      }
+  }, [mobileActiveTab, releaseMobileKeyboardNotes, triggerGate]);
+  const closeMobileKeyboard = useCallback(() => {
+      releaseMobileKeyboardNotes();
+      setIsMobileKeyboardOpen(false);
+      setMobileActiveTab(mobileLastTabRef.current);
+      if (typeof document !== 'undefined' && document.fullscreenElement && document.exitFullscreen) {
+          document.exitFullscreen().catch(() => {
+              // Ignore browser-specific fullscreen exit failures.
+          });
+      }
+  }, [releaseMobileKeyboardNotes]);
+  const handleMobileKeyboardPolyphonicChange = useCallback((next: boolean) => {
+      releaseMobileKeyboardNotes();
+      setMobileKeyboardPolyphonic(next);
+  }, [releaseMobileKeyboardNotes]);
+  const handleMobileKeyboardNoteOn = useCallback((note: number) => {
+      if (!isMobileKeyboardOpen) return;
+      triggerMobileKeyboardNote(note, true, mobileKeyboardPolyphonic);
+  }, [isMobileKeyboardOpen, mobileKeyboardPolyphonic, triggerMobileKeyboardNote]);
+  const handleMobileKeyboardNoteOff = useCallback((note: number) => {
+      if (!isMobileKeyboardOpen) return;
+      triggerMobileKeyboardNote(note, false, mobileKeyboardPolyphonic);
+  }, [isMobileKeyboardOpen, mobileKeyboardPolyphonic, triggerMobileKeyboardNote]);
+  const handleMobileKeyboardControlTargetChange = useCallback((index: number, target: LfoTarget) => {
+      if (!isMobileKeyboardOpen) return;
+      const current = mobileKeyboardControlFadersRef.current;
+      if (index < 0 || index >= current.length) return;
+      const next = [...current];
+      const nextValue = next[index].value;
+      next[index] = { ...next[index], target };
+      mobileKeyboardControlFadersRef.current = next;
+      setMobileKeyboardControlFaders(next);
+      if (target !== 'none') {
+          notifyUiControlRef.current();
+          setInteractionMode('instant');
+          setTargetValue(target, nextValue);
+      }
+  }, [isMobileKeyboardOpen, setTargetValue]);
+  const handleMobileKeyboardControlValueChange = useCallback((index: number, value: number) => {
+      if (!isMobileKeyboardOpen) return;
+      const current = mobileKeyboardControlFadersRef.current;
+      if (index < 0 || index >= current.length) return;
+      const target = current[index].target;
+      const next = [...current];
+      next[index] = { ...next[index], value };
+      mobileKeyboardControlFadersRef.current = next;
+      setMobileKeyboardControlFaders(next);
+      if (target !== 'none') {
+          notifyUiControlRef.current();
+          setInteractionMode('instant');
+          setTargetValue(target, value);
+      }
+  }, [isMobileKeyboardOpen, setTargetValue]);
+  const handleMobileKeyboardOscOctaveChange = useCallback((oscId: 1 | 2, octave: number) => {
+      if (!isMobileKeyboardOpen) return;
+      const min = OCTAVE_FOOTAGE[0].value;
+      const max = OCTAVE_FOOTAGE[OCTAVE_FOOTAGE.length - 1].value;
+      const next = Math.max(min, Math.min(max, octave));
+      notifyUiControlRef.current();
+      setInteractionMode('instant');
+      updateOsc(oscId === 1 ? 'osc1' : 'osc2', 'octave', next);
+  }, [isMobileKeyboardOpen, updateOsc]);
+  const handleMobileKeyboardOscModeChange = useCallback((oscId: 1 | 2, mode: MobileKeyboardOscMode) => {
+      if (!isMobileKeyboardOpen) return;
+      notifyUiControlRef.current();
+      setInteractionMode('instant');
+      if (mode !== 'kbd') {
+          releaseMobileKeyboardNotes();
+      }
+      const oscKey = oscId === 1 ? 'osc1' : 'osc2';
+      setParams(prev => {
+          const currentOsc = prev[oscKey];
+          const nextOsc = mode === 'kbd'
+              ? { ...currentOsc, voltOct: true, drone: false, midi: false }
+              : mode === 'drone'
+                  ? { ...currentOsc, voltOct: false, drone: true, midi: false }
+                  : { ...currentOsc, voltOct: false, drone: false, midi: false };
+
+          if (
+              nextOsc.voltOct === currentOsc.voltOct &&
+              nextOsc.drone === currentOsc.drone &&
+              nextOsc.midi === currentOsc.midi
+          ) {
+              return prev;
+          }
+          return { ...prev, [oscKey]: nextOsc };
+      });
+      triggerGate(oscId, mode === 'drone', true);
+  }, [isMobileKeyboardOpen, releaseMobileKeyboardNotes, triggerGate]);
+  const openMobileMenu = useCallback(() => {
+      if (mobileMenuCloseTimerRef.current !== null) {
+          window.clearTimeout(mobileMenuCloseTimerRef.current);
+          mobileMenuCloseTimerRef.current = null;
+      }
+      mobileMenuSwipeRef.current = null;
+      setMobileMenuVisualState('entering');
+      setIsMobileMenuOpen(true);
+      window.requestAnimationFrame(() => {
+          setMobileMenuVisualState('open');
+      });
+  }, []);
+  const closeMobileMenuImmediate = useCallback(() => {
+      if (mobileMenuCloseTimerRef.current !== null) {
+          window.clearTimeout(mobileMenuCloseTimerRef.current);
+          mobileMenuCloseTimerRef.current = null;
+      }
+      mobileMenuSwipeRef.current = null;
+      setMobileMenuVisualState('open');
+      setIsMobileMenuOpen(false);
+  }, []);
+  const closeMobileMenu = useCallback((direction: 'up' | 'right' = 'up') => {
+      if (!isMobileMenuOpen) {
+          closeMobileMenuImmediate();
+          return;
+      }
+      if (mobileMenuCloseTimerRef.current !== null) {
+          window.clearTimeout(mobileMenuCloseTimerRef.current);
+      }
+      setMobileMenuVisualState('closing-right');
+      mobileMenuCloseTimerRef.current = window.setTimeout(() => {
+          mobileMenuCloseTimerRef.current = null;
+          mobileMenuSwipeRef.current = null;
+          setMobileMenuVisualState('open');
+          setIsMobileMenuOpen(false);
+      }, MOBILE_MENU_ANIMATION_MS);
+  }, [closeMobileMenuImmediate, isMobileMenuOpen]);
+  const clearMobileMenuSwipe = useCallback(() => {
+      mobileMenuSwipeRef.current = null;
+  }, []);
+  const handleMobileMenuPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+      if (event.pointerType !== 'touch') return;
+      mobileMenuSwipeRef.current = {
+          startX: event.clientX,
+          startY: event.clientY,
+          pointerId: event.pointerId
+      };
+  }, []);
+  const handleMobileMenuPointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+      const swipe = mobileMenuSwipeRef.current;
+      if (!swipe || event.pointerType !== 'touch' || swipe.pointerId !== event.pointerId) return;
+      const dx = event.clientX - swipe.startX;
+      const dy = event.clientY - swipe.startY;
+      const swipeUpToClose = dy <= -48 && Math.abs(dy) > Math.abs(dx) + 12;
+      const swipeRightToClose = dx >= 48 && dx > Math.abs(dy) + 12;
+      if (swipeUpToClose) {
+          mobileMenuSwipeRef.current = null;
+          triggerMobileHaptic('medium');
+          closeMobileMenu('right');
+      } else if (swipeRightToClose) {
+          mobileMenuSwipeRef.current = null;
+          triggerMobileHaptic('medium');
+          closeMobileMenu('right');
+      }
+  }, [closeMobileMenu]);
+  const handleMobileContentScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
+      const target = event.currentTarget;
+      const atTop = target.scrollTop <= 1;
+      const atBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - 2;
+      setIsMobileContentAtTop(prev => (prev === atTop ? prev : atTop));
+      setIsMobileContentAtBottom(prev => (prev === atBottom ? prev : atBottom));
+  }, []);
+
+  useEffect(() => {
+      if (!isMobileLayout) {
+          setIsMobileContentAtTop(true);
+          setIsMobileContentAtBottom(false);
+          return;
+      }
+      const target = mobileContentRef.current;
+      if (!target) return;
+      const atTop = target.scrollTop <= 1;
+      const atBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - 2;
+      setIsMobileContentAtTop(atTop);
+      setIsMobileContentAtBottom(atBottom);
+  }, [isMobileLayout, mobileActiveTab, isMobileMenuOpen]);
+
+  useEffect(() => {
+      mobileLastTabRef.current = mobileActiveTab;
+  }, [mobileActiveTab]);
   const showAppNotice = useCallback((message: string, timeoutMs = 4000) => {
       if (appNoticeTimerRef.current !== null) {
           clearTimeout(appNoticeTimerRef.current);
@@ -410,22 +721,31 @@ export const App: React.FC = () => {
   if (!isStarted) {
     return (
       <div className="relative min-h-screen flex flex-col text-zinc-300 p-6 _b-panel border">
-        <InstructionsModal isOpen={showInfo} onClose={closeActiveModal} />
-        <div
-          className="absolute top-[20px] left-1/2 -translate-x-1/2 h-12 w-12"
-          style={{
-            backgroundImage: `url('${logoUrl}')`,
-            backgroundRepeat: 'no-repeat',
-            backgroundPosition: 'center',
-            backgroundSize: 'contain'
-          }}
-          aria-hidden="true"
-        />
+        <InstructionsModal isOpen={showInfo} onClose={closeActiveModal} isMobile={isMobileLayout} />
+        {!isMobileLayout && (
+          <div
+            className="absolute top-[20px] left-1/2 -translate-x-1/2 h-12 w-12"
+            style={{
+              backgroundImage: `url('${logoUrl}')`,
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'center',
+              backgroundSize: 'contain'
+            }}
+            aria-hidden="true"
+          />
+        )}
         <div className="flex-grow flex flex-col items-center justify-center gap-8">
           {appNotice && <div className="mb-2 px-3 py-1 border border-red-800 bg-red-950/30 text-red-300 text-[10px] uppercase tracking-wider">{appNotice}</div>}
           <div className="text-center">
             <h1 className="mb-4 _t-init-title">{TEXTS.title}</h1>
-            <h2 className="_t-init-subtitle">{TEXTS.subtitle}</h2>
+            {isMobileLayout ? (
+              <h2 className="_t-init-subtitle">
+                <span className="block">WEB-BASED</span>
+                <span className="block whitespace-nowrap">NOISE SYNTHESIZER</span>
+              </h2>
+            ) : (
+              <h2 className="_t-init-subtitle">{TEXTS.subtitle}</h2>
+            )}
           </div>
           <button onClick={startAudio} className="mt-[16px] px-12 _c-btn-init _t-init-btn _s-inactive _b-panel border animate-pulse">{TEXTS.initSystem}</button>
         </div>
@@ -437,11 +757,381 @@ export const App: React.FC = () => {
     );
   }
 
+  let mobileTabContent: React.ReactNode = null;
+  switch (mobileActiveTab) {
+      case 'oscillators':
+          mobileTabContent = (
+              <VoiceSection
+                  params={params}
+                  activeGateKeys={activeGateKeys}
+                  isVOctGateActive1={isVOctGateActive1}
+                  isVOctGateActive2={isVOctGateActive2}
+                  updateOsc={updateOsc}
+                  updateEnv={updateEnv}
+                  toggleSequencer={toggleSequencer}
+                  toggleVoltOct={toggleVoltOct}
+                  toggleDrone={toggleDrone}
+                  toggleMidi={toggleMidi}
+                  layoutMode="mobile"
+                  hideMidiControls
+              />
+          );
+          break;
+      case 'modulation':
+          mobileTabContent = (
+              <ModulationSection
+                  lfo1={params.lfo1}
+                  lfo2={params.lfo2}
+                  osc1Wave={params.osc1.wave}
+                  osc2Wave={params.osc2.wave}
+                  oscMod={params.oscMod}
+                  modEnv1={params.modEnv1}
+                  modEnv2={params.modEnv2}
+                  updateLfo={updateLfo}
+                  updateModPath={updateModPath}
+                  updateModEnv={updateModEnv}
+                  onLfoTapTempo={onLfoTapTempo}
+                  layoutMode="mobile"
+              />
+          );
+          break;
+      case 'sequencers':
+          mobileTabContent = (
+              <div className="flex flex-col gap-6">
+                  <VoiceSequencerSection
+                      params={params}
+                      layoutMode="mobile"
+                      currentStep1={currentStep1}
+                      currentStep2={currentStep2}
+                      updateSeq={updateSeq}
+                      updateSeqStep={updateSeqStep}
+                      toggleSeqGate={toggleSeqGate}
+                      toggleSequencer={toggleSequencer}
+                      syncSequencers={syncSequencers}
+                      manualSeqStep={manualSeqStep}
+                      resetSequencer={resetSequencer}
+                      randomizePattern={randomizePattern}
+                  />
+                  <ModSequencerSection
+                      params={params}
+                      currentStepMod1={currentStepMod1}
+                      currentStepMod2={currentStepMod2}
+                      updateSeq={updateSeq}
+                      updateSeqStep={updateSeqStep}
+                      toggleModSequencer={toggleModSequencer}
+                      syncModSequencers={syncModSequencers}
+                      syncModToMaster={syncModToMaster}
+                      manualModSeqStep={manualModSeqStep}
+                      resetModSequencer={resetModSequencer}
+                      randomizePattern={randomizePattern}
+                  />
+              </div>
+          );
+          break;
+      case 'matrix':
+          mobileTabContent = (
+              <MatrixSection
+                  params={params}
+                  assignTargets={assignTargets}
+                  setAssignTargets={setAssignTargets}
+                  sensitivities={sensitivities}
+                  setSensitivities={setSensitivities}
+                  onMacroMove={handleMacroMove}
+                  triggerGate={triggerGate}
+                  setTargetValue={setTargetValue}
+                  setInteractionMode={setInteractionMode}
+              />
+          );
+          break;
+      case 'effects':
+          mobileTabContent = (
+              <EffectsSection
+                  global={params.global}
+                  noise={params.noise}
+                  updateGlobal={updateGlobal}
+                  updateNoise={updateNoise}
+                  onTapTempo={onTapTempo}
+              />
+          );
+          break;
+      case 'mix-record':
+          mobileTabContent = (
+              <MasterSection
+                  analyserNode={analyserNode}
+                  global={params.global}
+                  osc1={params.osc1}
+                  osc2={params.osc2}
+                  updateGlobal={updateGlobal}
+                  updateOsc={updateOsc}
+                  isModalOpen={activeModal !== 'none' || isMobileMenuOpen || isMobileKeyboardOpen}
+                  layoutMode="mobile"
+              />
+          );
+          break;
+      default:
+          break;
+  }
+
+  if (isMobileLayout) {
+      return (
+          <div className="h-screen overflow-hidden" style={{ backgroundColor: 'var(--color-fader-track)' }}>
+              {appNotice && (
+                  <div className="absolute top-2 left-2 right-2 z-[140] px-3 py-1 border border-red-800 bg-red-950/30 text-red-300 text-[10px] uppercase tracking-wider">
+                      {appNotice}
+                  </div>
+              )}
+              <InstructionsModal isOpen={showInfo} onClose={closeActiveModal} isMobile={isMobileLayout} />
+              <AboutModal isOpen={showAbout} onClose={closeActiveModal} />
+              <input type="file" ref={fileInputRef} onChange={handleFileChange} style={{ display: 'none' }} accept=".json" />
+
+              {isMobileMenuOpen && (
+                  <div
+                      className={`fixed inset-0 z-[120] bg-black/80 transition-opacity duration-200 ${mobileMenuVisualState === 'open' ? 'opacity-100' : 'opacity-0'}`}
+                      onClick={() => closeMobileMenu('right')}
+                  >
+                      <div
+                          className={`h-full w-full bg-black/95 flex flex-col transition-transform transition-opacity duration-200 ${
+                              mobileMenuVisualState === 'entering'
+                                  ? 'opacity-0 translate-x-16'
+                                  : mobileMenuVisualState === 'closing-right'
+                                      ? 'opacity-0 translate-x-16'
+                                      : 'opacity-100 translate-x-0'
+                          }`}
+                          style={{
+                              paddingTop: 'calc(10px + env(safe-area-inset-top))',
+                              paddingBottom: 'calc(14px + env(safe-area-inset-bottom))'
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          onPointerDown={handleMobileMenuPointerDown}
+                          onPointerMove={handleMobileMenuPointerMove}
+                          onPointerUp={clearMobileMenuSwipe}
+                          onPointerCancel={clearMobileMenuSwipe}
+                      >
+                          <div className="relative px-4 pb-2">
+                              <div
+                                  className="select-none text-center pointer-events-none"
+                                  style={{ transform: 'translateY(40px)' }}
+                              >
+                                  <div className="_t-init-title" style={{ fontSize: '24px' }}>
+                                      {TEXTS.title}
+                                  </div>
+                                  <div className="_t-init-subtitle" style={{ fontSize: '8px', letterSpacing: '0.22em' }}>
+                                      {TEXTS.subtitle}
+                                  </div>
+                              </div>
+                              <button
+                                  type="button"
+                                  aria-label="Close menu"
+                                  onPointerDown={(e) => {
+                                      if (e.pointerType === 'touch') triggerMobileHaptic('light');
+                                  }}
+                                  onClick={() => closeMobileMenu('right')}
+                                  className="absolute top-0 left-4 inline-flex h-9 w-9 items-center justify-center text-zinc-400"
+                              >
+                                  <svg
+                                      aria-hidden="true"
+                                      viewBox="0 0 20 20"
+                                      fill="none"
+                                      className="h-[22px] w-[22px]"
+                                  >
+                                      <path
+                                          d="M12.5 4.5L7 10l5.5 5.5"
+                                          stroke="currentColor"
+                                          strokeWidth="1.8"
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                      />
+                                  </svg>
+                              </button>
+                          </div>
+                          <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center px-6">
+                              <button
+                                  type="button"
+                                  onPointerDown={(e) => {
+                                      if (e.pointerType === 'touch') triggerMobileHaptic('light');
+                                  }}
+                                  onClick={() => { handleSave(); closeMobileMenu('right'); }}
+                                  className="_t-sub-sect translate-y-0 py-1"
+                                  style={{ color: 'var(--color-text-label)' }}
+                              >
+                                  SAVE PATCH
+                              </button>
+                              <button
+                                  type="button"
+                                  onPointerDown={(e) => {
+                                      if (e.pointerType === 'touch') triggerMobileHaptic('light');
+                                  }}
+                                  onClick={() => { handleLoadClick(); closeMobileMenu('right'); }}
+                                  className="_t-sub-sect translate-y-0 py-1"
+                                  style={{ color: 'var(--color-text-label)' }}
+                              >
+                                  LOAD PATCH
+                              </button>
+                              <button
+                                  type="button"
+                                  onPointerDown={(e) => {
+                                      if (e.pointerType === 'touch') triggerMobileHaptic('light');
+                                  }}
+                                  onClick={() => { openModal('manual'); closeMobileMenu('right'); }}
+                                  className="_t-sub-sect translate-y-0 py-1"
+                                  style={{ color: 'var(--color-text-label)' }}
+                              >
+                                  MANUAL
+                              </button>
+                              <button
+                                  type="button"
+                                  onPointerDown={(e) => {
+                                      if (e.pointerType === 'touch') triggerMobileHaptic('light');
+                                  }}
+                                  onClick={() => { openModal('about'); closeMobileMenu('right'); }}
+                                  className="_t-sub-sect translate-y-0 py-1"
+                                  style={{ color: 'var(--color-text-label)' }}
+                              >
+                                  ABOUT PROJECT
+                              </button>
+                          </div>
+                          <div className="px-4 pt-4 border-t border-zinc-800 flex flex-col gap-1 _t-label text-center">
+                              <span>{TEXTS.footer.version}</span>
+                              <span>{TEXTS.footer.credit}</span>
+                              <span>{TEXTS.footer.license}</span>
+                          </div>
+                      </div>
+                  </div>
+              )}
+
+              {isMobileKeyboardOpen && (
+                  <MobileKeyboardOverlay
+                      controlFaders={mobileKeyboardControlFaders}
+                      isOpen={isMobileKeyboardOpen}
+                      polyphonic={mobileKeyboardPolyphonic}
+                      osc1Mode={params.osc1.drone ? 'drone' : params.osc1.voltOct ? 'kbd' : 'off'}
+                      osc2Mode={params.osc2.drone ? 'drone' : params.osc2.voltOct ? 'kbd' : 'off'}
+                      onPolyphonicChange={handleMobileKeyboardPolyphonicChange}
+                      onClose={closeMobileKeyboard}
+                      onNoteOn={handleMobileKeyboardNoteOn}
+                      onNoteOff={handleMobileKeyboardNoteOff}
+                      osc1Octave={params.osc1.octave}
+                      osc2Octave={params.osc2.octave}
+                      onOscModeChange={handleMobileKeyboardOscModeChange}
+                      onOscOctaveChange={handleMobileKeyboardOscOctaveChange}
+                      onControlTargetChange={handleMobileKeyboardControlTargetChange}
+                      onControlValueChange={handleMobileKeyboardControlValueChange}
+                  />
+              )}
+
+              <div
+                  className="fixed inset-x-0 top-0 z-40 border-b border-zinc-800 px-3"
+                  style={{ paddingTop: 'env(safe-area-inset-top)', backgroundColor: 'var(--color-fader-track)' }}
+              >
+                  <div className="flex h-12 items-center justify-between">
+                      <div
+                          className="_t-panel-title select-none leading-none"
+                          style={{ fontSize: '14px' }}
+                      >
+                          TETHER
+                      </div>
+                      <button
+                          type="button"
+                          aria-label="Open menu"
+                          onPointerDown={(e) => {
+                              if (e.pointerType === 'touch') triggerMobileHaptic('light');
+                          }}
+                          onClick={openMobileMenu}
+                          className="inline-flex h-8 w-8 flex-col items-center justify-center gap-1"
+                      >
+                          <span className="block h-[1px] w-5 bg-zinc-300" />
+                          <span className="block h-[1px] w-5 bg-zinc-300" />
+                          <span className="block h-[1px] w-5 bg-zinc-300" />
+                      </button>
+                  </div>
+              </div>
+
+              <div
+                  className="fixed inset-x-0 bottom-0 z-40 border-t border-zinc-800"
+                  style={{ paddingBottom: 'env(safe-area-inset-bottom)', backgroundColor: 'var(--color-fader-track)' }}
+              >
+                  <div className="relative grid w-full grid-cols-3 grid-rows-2 overflow-hidden">
+                      {MOBILE_TABS.map((tab, index) => {
+                          const isLastColumn = index % 3 === 2;
+                          const isLastRow = index >= 3;
+                          const isActive = mobileActiveTab === tab.key;
+
+                          return (
+                              <button
+                                  key={tab.key}
+                                  type="button"
+                                   onPointerDown={(e) => {
+                                       if (e.pointerType === 'touch') triggerMobileHaptic('light');
+                                   }}
+                                   onClick={() => setMobileActiveTab(tab.key)}
+                                   className={`h-[37px] _t-label transition-colors ${isLastColumn ? '' : 'border-r border-zinc-800'} ${isLastRow ? '' : 'border-b border-zinc-800'} ${isActive ? 'text-[var(--color-button-active-text)]' : 'bg-transparent text-[var(--color-text-subtitle)] hover:text-[var(--color-text-subtitle)]'}`}
+                                   style={isActive ? { backgroundColor: 'var(--color-button-active-bg)', transform: 'none' } : { transform: 'none' }}
+                              >
+                                  {tab.label}
+                              </button>
+                          );
+                      })}
+                  </div>
+                  <div className="border-t border-zinc-800">
+                      <button
+                          type="button"
+                          onPointerDown={(e) => {
+                              if (e.pointerType === 'touch') triggerMobileHaptic('medium');
+                          }}
+                          onClick={openMobileKeyboard}
+                          className="_t-label h-[36px] w-full transition-colors"
+                          style={
+                              isMobileKeyboardOpen
+                                  ? { backgroundColor: 'var(--color-button-active-bg)', color: 'var(--color-button-active-text)', transform: 'none' }
+                                  : { color: 'var(--color-text-subtitle)', transform: 'none' }
+                          }
+                      >
+                          KEYBOARD
+                      </button>
+                  </div>
+              </div>
+
+              <div
+                  className={`fixed inset-x-0 z-30 pointer-events-none transition-opacity duration-150 ${isMobileContentAtTop ? 'opacity-0' : 'opacity-100'}`}
+                  style={{
+                      top: `calc(${MOBILE_TOP_MENU_HEIGHT}px + env(safe-area-inset-top))`,
+                      height: '28px',
+                      background: 'linear-gradient(to bottom, rgba(0,0,0,0.52), rgba(0,0,0,0))'
+                  }}
+              />
+
+              <div
+                  className={`fixed inset-x-0 z-30 pointer-events-none transition-opacity duration-150 ${isMobileContentAtBottom ? 'opacity-0' : 'opacity-100'}`}
+                  style={{
+                      bottom: `calc(${MOBILE_BOTTOM_MENU_HEIGHT}px + env(safe-area-inset-bottom))`,
+                      height: '28px',
+                      background: 'linear-gradient(to top, rgba(0,0,0,0.52), rgba(0,0,0,0))'
+                  }}
+              />
+
+              <div
+                  className="fixed inset-x-0 overflow-y-auto _scroll-thin px-4 py-4"
+                  ref={mobileContentRef}
+                  onScroll={handleMobileContentScroll}
+                  style={{
+                      top: `calc(${MOBILE_TOP_MENU_HEIGHT}px + env(safe-area-inset-top))`,
+                      bottom: `calc(${MOBILE_BOTTOM_MENU_HEIGHT}px + env(safe-area-inset-bottom))`,
+                      WebkitOverflowScrolling: 'touch',
+                      overscrollBehaviorY: 'contain',
+                      touchAction: 'pan-y'
+                  }}
+              >
+                  {mobileTabContent}
+              </div>
+          </div>
+      );
+  }
+
   return (
     <div className="h-screen flex flex-col bg-zinc-950 overflow-hidden">
       {appNotice && <div className="absolute top-2 right-2 z-50 px-3 py-1 border border-red-800 bg-red-950/30 text-red-300 text-[10px] uppercase tracking-wider">{appNotice}</div>}
       <ScreenSizeWarningModal isOpen={showScreenWarning} onClose={() => setShowScreenWarning(false)} />
-      <InstructionsModal isOpen={showInfo} onClose={closeActiveModal} />
+      <InstructionsModal isOpen={showInfo} onClose={closeActiveModal} isMobile={isMobileLayout} />
       <AboutModal isOpen={showAbout} onClose={closeActiveModal} />
       {showMidi && midiAccess && (
           <MidiConfigPanel inputs={midiInputs} config={midiConfig} updateConfig={updateMidiConfig} learningIndex={learningMappingIndex} setLearningIndex={setLearningMapping} onClose={closeActiveModal} />

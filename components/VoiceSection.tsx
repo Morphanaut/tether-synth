@@ -23,11 +23,13 @@ interface OscillatorPanelProps {
   toggleVoltOct: () => void;
   toggleDrone: () => void;
   toggleMidi: () => void;
+  layoutMode?: 'desktop' | 'mobile';
+  hideMidiControl?: boolean;
 }
 
 const OscillatorPanel: React.FC<OscillatorPanelProps> = React.memo(({
   oscState, envState, isSequencerRunning, activeKeys, isVOctGateActive,
-  updateOsc, updateEnv, toggleSequencer, toggleVoltOct, toggleDrone, toggleMidi, label, subLabel
+  updateOsc, updateEnv, toggleSequencer, toggleVoltOct, toggleDrone, toggleMidi, label, subLabel, layoutMode = 'desktop', hideMidiControl = false
 }) => {
   const isActive = activeKeys || oscState.drone || isSequencerRunning || isVOctGateActive;
   const currentFootage = OCTAVE_FOOTAGE.find(o => o.value === oscState.octave)?.label || "8'";
@@ -37,7 +39,7 @@ const OscillatorPanel: React.FC<OscillatorPanelProps> = React.memo(({
     <div className={`border border-zinc-400 p-4 transition-colors _b-panel ${isActive ? 'bg-zinc-900 shadow-[inset_0_0_20px_rgba(255,255,255,0.05)]' : ''}`}>
       <div className="flex justify-between items-end border-b border-zinc-800 pb-2 mb-4 _b-widget">
         <div className="_t-panel-title">{label}</div>
-        <div className="_t-panel-desc">{subLabel}</div>
+        {layoutMode !== 'mobile' && <div className="_t-panel-desc">{subLabel}</div>}
       </div>
       
       <div className="flex justify-between items-center mb-6">
@@ -52,14 +54,14 @@ const OscillatorPanel: React.FC<OscillatorPanelProps> = React.memo(({
           <Button onClick={toggleSequencer} active animate>{TEXTS.seq.title}</Button>
         ) : (
           <ButtonGroup>
-            <Button onClick={toggleMidi} active={oscState.midi}>{TEXTS.osc.midi}</Button>
+            {!hideMidiControl && <Button onClick={toggleMidi} active={oscState.midi}>{TEXTS.osc.midi}</Button>}
             <Button onClick={toggleVoltOct} active={oscState.voltOct}>{TEXTS.osc.voltOct}</Button>
             <Button onClick={toggleDrone} active={oscState.drone} animate={oscState.drone}>{TEXTS.osc.drone}</Button>
           </ButtonGroup>
         )}
       </div>
 
-      <div className="grid gap-4 mb-6">
+      <div className={`grid gap-4 mb-6 ${layoutMode === 'mobile' ? 'pt-4 border-t border-zinc-800' : ''}`}>
         {!isControlsVisible && (
           <div>
             <Row><Label>{TEXTS.osc.freq}</Label><Value>{mapFreq(oscState.freq).toFixed(0)} Hz</Value></Row>
@@ -158,6 +160,8 @@ interface VoiceSectionProps {
     toggleVoltOct: (id: 1 | 2) => void;
     toggleDrone: (id: 1 | 2) => void;
     toggleMidi: (id: 1 | 2) => void;
+    layoutMode?: 'desktop' | 'mobile';
+    hideMidiControls?: boolean;
 }
 
 const VoiceSection: React.FC<VoiceSectionProps> = React.memo(({
@@ -170,7 +174,9 @@ const VoiceSection: React.FC<VoiceSectionProps> = React.memo(({
     toggleSequencer,
     toggleVoltOct,
     toggleDrone,
-    toggleMidi
+    toggleMidi,
+    layoutMode = 'desktop',
+    hideMidiControls = false
 }) => {
     const updateOsc1 = useCallback<OscUpdateLocal>((k, v) => updateOsc('osc1', k, v), [updateOsc]);
     const updateEnv1 = useCallback<EnvUpdateLocal>((k, v) => updateEnv('env1', k, v), [updateEnv]);
@@ -185,7 +191,7 @@ const VoiceSection: React.FC<VoiceSectionProps> = React.memo(({
     const toggleMidi2 = useCallback(() => toggleMidi(2), [toggleMidi]);
 
     return (
-        <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className={layoutMode === 'mobile' ? 'grid grid-cols-1 gap-6 mb-0' : 'grid grid-cols-2 gap-4 mb-6'}>
             <OscillatorPanel
                 id={1}
                 label={`${TEXTS.osc.title} A`}
@@ -201,6 +207,8 @@ const VoiceSection: React.FC<VoiceSectionProps> = React.memo(({
                 toggleVoltOct={toggleVoltOct1}
                 toggleDrone={toggleDrone1}
                 toggleMidi={toggleMidi1}
+                layoutMode={layoutMode}
+                hideMidiControl={hideMidiControls}
             />
             <OscillatorPanel
                 id={2}
@@ -217,6 +225,8 @@ const VoiceSection: React.FC<VoiceSectionProps> = React.memo(({
                 toggleVoltOct={toggleVoltOct2}
                 toggleDrone={toggleDrone2}
                 toggleMidi={toggleMidi2}
+                layoutMode={layoutMode}
+                hideMidiControl={hideMidiControls}
             />
         </div>
     );

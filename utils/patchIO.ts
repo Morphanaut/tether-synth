@@ -51,7 +51,7 @@ export const savePatchFile = (
     sensitivities: MatrixSensitivities
 ): void => {
     const patch: SynthPatch = {
-        meta: { version: '1.0.0', timestamp: Date.now() },
+        meta: { version: '1.1.0', timestamp: Date.now() },
         data: { params, assignTargets, sensitivities }
     };
 

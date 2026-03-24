@@ -181,26 +181,28 @@ const DelayPanel: React.FC<FxPanelProps & { onTapTempo: () => void }> = React.me
             <PanelTitle>{TEXTS.delay.title}</PanelTitle>
             <Button onClick={() => updateGlobal('delayEnabled', !global.delayEnabled)} active={global.delayEnabled}>{global.delayEnabled ? "ENABLED" : "BYPASSED"}</Button>
         </div>
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-6">
             <ButtonGroup>
                 <Button onClick={() => updateGlobal('delayMode', 'free')} active={global.delayMode === 'free'}>FREE</Button>
                 <Button onClick={() => updateGlobal('delayMode', 'sync')} active={global.delayMode === 'sync'}>SYNC</Button>
             </ButtonGroup>
             {global.delayMode === 'sync' && (
-                <div className="flex gap-2">
+                <div className="flex gap-2 w-full md:w-auto">
                     <Select value={global.delayDivision} onChange={v => updateGlobal('delayDivision', v as DelayDivision)} options={DELAY_DIVISIONS.map(d => ({ label: d.label, value: d.value }))} className="w-24" />
                     <Button onClick={onTapTempo}>{TEXTS.delay.tap}</Button>
                 </div>
             )}
         </div>
-        <div className={`grid grid-cols-3 gap-6 pb-6 ${!global.delayEnabled ? 'opacity-50' : ''} transition-opacity duration-200`}>
-            {global.delayMode === 'free' ? (
-                <div><Row><Label>{TEXTS.delay.time}</Label><Value>{global.delayTime} ms</Value></Row><Fader value={global.delayTime} onChange={v => updateGlobal('delayTime', v)} /></div>
-            ) : (
-                <div><Row><Label>{TEXTS.delay.bpm}</Label><Value>{global.bpm}</Value></Row><Fader min={30} max={300} value={global.bpm} onChange={v => updateGlobal('bpm', v)} /></div>
-            )}
-            <div><Row><Label>{TEXTS.delay.feedback}</Label><Value>{Math.round(global.delayFeedback / 10.24)}%</Value></Row><Fader value={global.delayFeedback} onChange={v => updateGlobal('delayFeedback', v)} /></div>
-            <div><Row><Label>{TEXTS.delay.drywet}</Label><Value>{Math.round(global.delayMix / 10.24)}%</Value></Row><Fader value={global.delayMix} onChange={v => updateGlobal('delayMix', v)} /></div>
+        <div className="pt-4 border-t border-zinc-800 md:pt-0 md:border-t-0">
+            <div className={`grid grid-cols-1 md:grid-cols-3 gap-6 pb-6 ${!global.delayEnabled ? 'opacity-50' : ''} transition-opacity duration-200`}>
+                {global.delayMode === 'free' ? (
+                    <div><Row><Label>{TEXTS.delay.time}</Label><Value>{global.delayTime} ms</Value></Row><Fader value={global.delayTime} onChange={v => updateGlobal('delayTime', v)} /></div>
+                ) : (
+                    <div><Row><Label>{TEXTS.delay.bpm}</Label><Value>{global.bpm}</Value></Row><Fader min={30} max={300} value={global.bpm} onChange={v => updateGlobal('bpm', v)} /></div>
+                )}
+                <div><Row><Label>{TEXTS.delay.feedback}</Label><Value>{Math.round(global.delayFeedback / 10.24)}%</Value></Row><Fader value={global.delayFeedback} onChange={v => updateGlobal('delayFeedback', v)} /></div>
+                <div><Row><Label>{TEXTS.delay.drywet}</Label><Value>{Math.round(global.delayMix / 10.24)}%</Value></Row><Fader value={global.delayMix} onChange={v => updateGlobal('delayMix', v)} /></div>
+            </div>
         </div>
     </div>
 ));
@@ -213,7 +215,7 @@ const ReverbPanel: React.FC<FxPanelProps> = React.memo(({ global, updateGlobal }
                 <PanelTitle>{TEXTS.springReverb.title}</PanelTitle>
                 <Button onClick={() => updateGlobal('springReverbEnabled', !global.springReverbEnabled)} active={global.springReverbEnabled}>{global.springReverbEnabled ? "ENABLED" : "BYPASSED"}</Button>
             </div>
-            <div className={`grid grid-cols-3 gap-6 ${!global.springReverbEnabled ? 'opacity-50' : ''} transition-opacity duration-200`}>
+            <div className={`grid grid-cols-1 md:grid-cols-3 gap-6 ${!global.springReverbEnabled ? 'opacity-50' : ''} transition-opacity duration-200`}>
                 <div><Row><Label>{TEXTS.springReverb.decay}</Label><Value>{currentSeconds}s</Value></Row><Fader value={global.springReverbDecay} onChange={v => updateGlobal('springReverbDecay', v)} /></div>
                 <div><Row><Label>{TEXTS.springReverb.tone}</Label><Value>{Math.round((global.springReverbTone - 512) / 5.12)}%</Value></Row><Fader value={global.springReverbTone} onChange={v => updateGlobal('springReverbTone', v)} /></div>
                 <div><Row><Label>{TEXTS.springReverb.mix}</Label><Value>{Math.round(global.springReverbMix / 10.24)}%</Value></Row><Fader value={global.springReverbMix} onChange={v => updateGlobal('springReverbMix', v)} /></div>
@@ -228,7 +230,7 @@ const FuzzPanel: React.FC<FxPanelProps> = React.memo(({ global, updateGlobal }) 
             <PanelTitle>{TEXTS.fuzz.title}</PanelTitle>
             <Button onClick={() => updateGlobal('fuzzEnabled', !global.fuzzEnabled)} active={global.fuzzEnabled}>{global.fuzzEnabled ? "ENABLED" : "BYPASSED"}</Button>
         </div>
-        <div className={`grid grid-cols-3 gap-6 ${!global.fuzzEnabled ? 'opacity-50' : ''} transition-opacity duration-200`}>
+        <div className={`grid grid-cols-1 md:grid-cols-3 gap-6 ${!global.fuzzEnabled ? 'opacity-50' : ''} transition-opacity duration-200`}>
             <div><Row><Label>{TEXTS.fuzz.drive}</Label><Value>{Math.round(global.fuzzDrive / 10.24)}%</Value></Row><Fader value={global.fuzzDrive} onChange={v => updateGlobal('fuzzDrive', v)} /></div>
             <div><Row><Label>{TEXTS.fuzz.tone}</Label><Value>{Math.round(global.fuzzTone / 10.24)}%</Value></Row><Fader value={global.fuzzTone} onChange={v => updateGlobal('fuzzTone', v)} /></div>
             <div><Row><Label>{TEXTS.fuzz.mix}</Label><Value>{Math.round(global.fuzzMix / 10.24)}%</Value></Row><Fader value={global.fuzzMix} onChange={v => updateGlobal('fuzzMix', v)} /></div>
@@ -245,7 +247,7 @@ const BitcrusherPanel: React.FC<FxPanelProps> = React.memo(({ global, updateGlob
                 <PanelTitle>{TEXTS.bitcrusher.title}</PanelTitle>
                 <Button onClick={() => updateGlobal('bitcrusherEnabled', !global.bitcrusherEnabled)} active={global.bitcrusherEnabled}>{global.bitcrusherEnabled ? "ENABLED" : "BYPASSED"}</Button>
             </div>
-            <div className={`grid grid-cols-3 gap-6 ${!global.bitcrusherEnabled ? 'opacity-50' : ''} transition-opacity duration-200`}>
+            <div className={`grid grid-cols-1 md:grid-cols-3 gap-6 ${!global.bitcrusherEnabled ? 'opacity-50' : ''} transition-opacity duration-200`}>
                 <div><Row><Label>{TEXTS.bitcrusher.bits}</Label><Value>{dispBits} BITS</Value></Row><Fader value={global.bitcrusherBits} onChange={v => updateGlobal('bitcrusherBits', v)} /></div>
                 <div><Row><Label>{TEXTS.bitcrusher.rate}</Label><Value>{dispRate} x</Value></Row><Fader value={global.bitcrusherRate} onChange={v => updateGlobal('bitcrusherRate', v)} /></div>
                 <div><Row><Label>{TEXTS.bitcrusher.mix}</Label><Value>{Math.round(global.bitcrusherMix / 10.24)}%</Value></Row><Fader value={global.bitcrusherMix} onChange={v => updateGlobal('bitcrusherMix', v)} /></div>
@@ -257,19 +259,40 @@ const BitcrusherPanel: React.FC<FxPanelProps> = React.memo(({ global, updateGlob
 const NoisePanel: React.FC<{ noise: NoiseGeneratorParams; updateNoise: NoiseUpdateFn }> = React.memo(({ noise, updateNoise }) => (
     <div className="border border-zinc-400 p-4 _b-panel">
         <div className="border-b border-zinc-800 pb-2 mb-4 flex justify-between items-end _b-widget"><PanelTitle>{TEXTS.noise.title}</PanelTitle></div>
-        <div className="mb-6 flex justify-between items-center">
-            <ButtonGroup>{NOISE_TYPES.map(n => <Button key={n.value} onClick={() => updateNoise('type', n.value)} active={noise.type === n.value}>{n.label}</Button>)}</ButtonGroup>
-            <ButtonGroup><Button onClick={() => updateNoise('routing', 'filter')} active={noise.routing === 'filter'}>OSC FLT</Button><Button onClick={() => updateNoise('routing', 'direct')} active={noise.routing === 'direct'}>DIRECT</Button></ButtonGroup>
+        <div className="mb-6 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 md:flex md:flex-row md:justify-between md:items-center md:gap-3">
+            <div className="min-w-0 overflow-x-auto _scroll-thin md:overflow-visible">
+                <ButtonGroup className="w-max md:w-auto">
+                    {NOISE_TYPES.map(n => (
+                        <Button
+                            key={n.value}
+                            onClick={() => updateNoise('type', n.value)}
+                            active={noise.type === n.value}
+                            className="px-1.5 md:px-2"
+                        >
+                            {n.label}
+                        </Button>
+                    ))}
+                </ButtonGroup>
+            </div>
+            <ButtonGroup className="shrink-0">
+                <Button onClick={() => updateNoise('routing', 'filter')} active={noise.routing === 'filter'} className="px-1.5 md:px-2">
+                    <span className="md:hidden">OSC/FLT</span>
+                    <span className="hidden md:inline">OSC FLT</span>
+                </Button>
+                <Button onClick={() => updateNoise('routing', 'direct')} active={noise.routing === 'direct'} className="px-1.5 md:px-2">
+                    DIRECT
+                </Button>
+            </ButtonGroup>
         </div>
-        <div className="grid grid-cols-2 gap-x-6 gap-y-4 mb-6 pt-4 border-t border-zinc-800">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 mb-6 pt-4 border-t border-zinc-800">
             <div><Row><Label>{TEXTS.noise.cutoff}</Label><Value>{mapCutoff(noise.cutoff).toFixed(0)} Hz</Value></Row><Fader value={noise.cutoff} onChange={v => updateNoise('cutoff', v)} /></div>
             <div><Row><Label>{TEXTS.noise.resonance}</Label><Value>{Math.round(noise.resonance / 10.24)}%</Value></Row><Fader value={noise.resonance} onChange={v => updateNoise('resonance', v)} /></div>
         </div>
-        <div className="grid grid-cols-2 gap-6 pt-4 border-t border-zinc-800">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-zinc-800">
             <div><Row><Label>{TEXTS.noise.sendA}</Label><Value>{Math.round(noise.sendA / 10.24)}%</Value></Row><Fader value={noise.sendA} onChange={v => updateNoise('sendA', v)} /></div>
             <div><Row><Label>{TEXTS.noise.sendB}</Label><Value>{Math.round(noise.sendB / 10.24)}%</Value></Row><Fader value={noise.sendB} onChange={v => updateNoise('sendB', v)} /></div>
         </div>
-        <div className="grid grid-cols-2 gap-6 pt-4 mt-4 border-t border-zinc-800">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 mt-4 border-t border-zinc-800">
             <div><Row><Label>{TEXTS.noise.fmA}</Label><Value>{Math.round(noise.fmSendA / 10.24)}%</Value></Row><Fader value={noise.fmSendA} onChange={v => updateNoise('fmSendA', v)} /></div>
             <div><Row><Label>{TEXTS.noise.fmB}</Label><Value>{Math.round(noise.fmSendB / 10.24)}%</Value></Row><Fader value={noise.fmSendB} onChange={v => updateNoise('fmSendB', v)} /></div>
         </div>

@@ -5,7 +5,7 @@ Browser-based 6-voice semi-modular noise synthesizer built on the Web Audio API.
 TETHER began as a rapid prototyping environment for analog synth design and evolved into a modular browser DSP instrument focused on industrial textures, drones, and lo-fi dungeon-synth sound.
 
 Web App: https://morphanaut.github.io/tether-synth/  
-Version: 1.0.0  
+Version: 1.1.0  
 License: MIT
 
 ## Overview
@@ -19,6 +19,14 @@ It combines subtractive synthesis, cross-modulation, sequencers, modulation rout
 At the moment, the system has been tested primarily in Google Chrome. The interface is designed for 1920×1080 resolution at 100% scale and performs best in full-screen mode.
 
 There are reports that other browsers, particularly Firefox, may experience issues initializing the audio engine (AudioWorklet). Cross-browser compatibility improvements are planned for future updates.
+
+## Mobile Version
+
+Starting from v1.1.0, TETHER includes a dedicated mobile control-surface layout.
+
+- mobile UI/navigation adaptation for phones
+- same synth/audio engine behavior as desktop
+- no new synthesis features in this update (layout-focused release)
 
 ## Core Principles
 
@@ -199,4 +207,5 @@ If you want to contribute:
 MIT License - see LICENSE.
 
 Morphanaut // 2026
+
 

@@ -36,7 +36,6 @@
     <link rel="preconnect" href="https://esm.sh" crossorigin />
     
     <!-- External Resources -->
-    <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.cdnfonts.com/css/pf-tempesta-seven" rel="stylesheet" />
     
     <style>
@@ -101,6 +100,14 @@
         touch-action: manipulation;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
+      }
+
+      html,
+      body,
+      #root,
+      #root * {
+        -webkit-user-select: none;
+        user-select: none;
       }
 
       ::selection {

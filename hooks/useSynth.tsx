@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { SynthState, LfoTarget, AudioGraphNodes, TriggerTarget, TriggerMode, EnvelopeParams, ModEnvelopeParams } from '../types';
 import { 
-    mapAttackTime, mapReleaseTime, mapPortamento, mapModEnvDelay,
+    mapAttackTime, mapReleaseTime, mapPortamento, mapModEnvDelay, midiToFreq,
     generateTolerances, AnalogTolerances, createSpringImpulseResponse
 } from '../utils/audioMath';
 import { createSynthNodes, updateFxRouting } from '../utils/audioGraph';
@@ -44,6 +44,8 @@ export const useSynth = (
   const keyStack1 = useRef<string[]>([]);
   const keyStack2 = useRef<string[]>([]);
   const activeMidiNotes = useRef<number[]>([]);
+  const mobileMonoNotes = useRef<number[]>([]);
+  const mobilePolyNoteToVoice = useRef<Map<number, number>>(new Map());
   const controlSourceRef = useRef<'ui' | 'midi'>('ui');
   const activeTargetsRef = useRef<Record<string, string>>({});
   
@@ -180,6 +182,131 @@ export const useSynth = (
     if (voiceId === 1) setIsVOctGateActive1(isOpen);
     if (voiceId === 2) setIsVOctGateActive2(isOpen);
   }, [triggerPolyVoice]);
+
+  const getMobileKeyboardTarget = useCallback((): TriggerTarget | null => {
+    const p = paramsRef.current;
+    const osc1Enabled = p.osc1.voltOct && !p.osc1.drone && !p.seq1.isRunning;
+    const osc2Enabled = p.osc2.voltOct && !p.osc2.drone && !p.seq2.isRunning;
+    if (!osc1Enabled && !osc2Enabled) return null;
+    if (osc1Enabled && osc2Enabled) return 'both';
+    return osc1Enabled ? 'osc1' : 'osc2';
+  }, []);
+
+  const getMobileReleaseMs = useCallback((target: TriggerTarget) => {
+    const p = paramsRef.current;
+    const usesOsc1 = target === 'osc1' || target === 'both';
+    const usesOsc2 = target === 'osc2' || target === 'both';
+    const rel1 = usesOsc1 ? mapReleaseTime(p.env1.release) : 0;
+    const rel2 = usesOsc2 ? mapReleaseTime(p.env2.release) : 0;
+    return Math.max(140, Math.round(Math.max(rel1, rel2, 0.02) * 1000 * 1.5));
+  }, []);
+
+  const releaseMobileKeyboardNotes = useCallback(() => {
+    const target = getMobileKeyboardTarget();
+    const now = performance.now();
+
+    mobileMonoNotes.current = [];
+
+    mobilePolyNoteToVoice.current.forEach((voiceIdx) => {
+      if (target) {
+        triggerPolyVoice(voiceIdx, null, 'release', target);
+      }
+      const voice = voiceAllocation.current[voiceIdx];
+      if (!voice) return;
+      voice.released = true;
+      voice.note = null;
+      voice.releaseUntil = now + (target ? getMobileReleaseMs(target) : 160);
+    });
+    mobilePolyNoteToVoice.current.clear();
+
+    if (target) {
+      triggerPolyVoice(0, null, 'release', target);
+    }
+  }, [getMobileKeyboardTarget, getMobileReleaseMs, triggerPolyVoice]);
+
+  const triggerMobileKeyboardNote = useCallback((note: number, isPressed: boolean, polyphonic: boolean) => {
+    if (!nodes.current || !ctxRef.current) return;
+    if (!Number.isFinite(note)) return;
+    const target = getMobileKeyboardTarget();
+    if (!target) return;
+
+    const freq = midiToFreq(note);
+    const now = performance.now();
+    controlSourceRef.current = 'ui';
+
+    if (polyphonic) {
+      const noteVoiceMap = mobilePolyNoteToVoice.current;
+
+      if (isPressed) {
+        const existingVoice = noteVoiceMap.get(note);
+        if (existingVoice !== undefined) {
+          const existingState = voiceAllocation.current[existingVoice];
+          if (existingState) {
+            existingState.note = note;
+            existingState.released = false;
+            existingState.timestamp = now;
+            existingState.releaseUntil = 0;
+          }
+          triggerPolyVoice(existingVoice, freq, 'attack', target);
+          return;
+        }
+
+        let targetIdx = voiceAllocation.current.findIndex(v => v.note === null || (v.released && v.releaseUntil <= now));
+        if (targetIdx === -1) {
+          let minTimestamp = Infinity;
+          voiceAllocation.current.forEach((v, idx) => {
+            if (v.timestamp < minTimestamp) {
+              minTimestamp = v.timestamp;
+              targetIdx = idx;
+            }
+          });
+        }
+        if (targetIdx < 0) targetIdx = 0;
+
+        voiceAllocation.current[targetIdx] = {
+          note,
+          released: false,
+          timestamp: now,
+          releaseUntil: 0
+        };
+        noteVoiceMap.set(note, targetIdx);
+        triggerPolyVoice(targetIdx, freq, 'attack', target);
+        return;
+      }
+
+      const releaseVoice = noteVoiceMap.get(note);
+      if (releaseVoice === undefined) return;
+      noteVoiceMap.delete(note);
+
+      const releaseState = voiceAllocation.current[releaseVoice];
+      if (releaseState) {
+        releaseState.released = true;
+        releaseState.note = null;
+        releaseState.releaseUntil = now + getMobileReleaseMs(target);
+      }
+      triggerPolyVoice(releaseVoice, null, 'release', target);
+      return;
+    }
+
+    if (isPressed) {
+      const stack = mobileMonoNotes.current;
+      const isLegato = stack.length > 0;
+      if (!stack.includes(note)) {
+        stack.push(note);
+      }
+      triggerPolyVoice(0, freq, isLegato ? 'legato' : 'attack', target);
+      return;
+    }
+
+    const nextStack = mobileMonoNotes.current.filter(n => n !== note);
+    mobileMonoNotes.current = nextStack;
+    if (nextStack.length > 0) {
+      const fallback = nextStack[nextStack.length - 1];
+      triggerPolyVoice(0, midiToFreq(fallback), 'legato', target);
+    } else {
+      triggerPolyVoice(0, null, 'release', target);
+    }
+  }, [getMobileKeyboardTarget, getMobileReleaseMs, triggerPolyVoice]);
 
   const { midiAccess, midiInputs, midiConfig, updateMidiConfig, learningMappingIndex, setLearningMapping, initMidi } = useMidiSystem(params, triggerPolyVoice, setActiveFreq1, setActiveFreq2, voiceAllocation, activeMidiNotes, lastVOctFreq1, lastVOctFreq2, controlSourceRef, onParamChange);
   useKeyboardSystem(paramsRef, triggerPolyVoice, setActiveFreq1, setActiveFreq2, lastVOctFreq1, lastVOctFreq2, keyStack1, keyStack2);
@@ -359,6 +486,6 @@ export const useSynth = (
     scheduleUiAudioUpdate();
   }, [params, isStarted, interactionMode, getTolerances, scheduleUiAudioUpdate]);
 
-  return { isStarted, startAudio, triggerGate, manualSeqStep, syncSequencers, resetSequencer, manualModSeqStep, resetModSequencer, syncModToMaster, syncModSequencers, handleTapTempo, analyserNode: nodes.current?.analyser || null, currentStep1, currentStep2, currentStepMod1, currentStepMod2, isVOctGateActive1, isVOctGateActive2, midiAccess, midiConfig, updateMidiConfig, midiInputs, setLearningMapping, learningMappingIndex, notifyUiControl };
+  return { isStarted, startAudio, triggerGate, triggerMobileKeyboardNote, releaseMobileKeyboardNotes, manualSeqStep, syncSequencers, resetSequencer, manualModSeqStep, resetModSequencer, syncModToMaster, syncModSequencers, handleTapTempo, analyserNode: nodes.current?.analyser || null, currentStep1, currentStep2, currentStepMod1, currentStepMod2, isVOctGateActive1, isVOctGateActive2, midiAccess, midiConfig, updateMidiConfig, midiInputs, setLearningMapping, learningMappingIndex, notifyUiControl };
 };
 

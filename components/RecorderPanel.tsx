@@ -9,6 +9,7 @@ interface RecorderPanelProps {
     analyserNode: AnalyserNode | null;
     className?: string;
     isModalOpen?: boolean;
+    layoutMode?: 'desktop' | 'mobile';
 }
 
 interface StyleCache {
@@ -18,7 +19,8 @@ interface StyleCache {
     grid: string;
 }
 
-const RecorderPanel: React.FC<RecorderPanelProps> = React.memo(({ analyserNode, className = "", isModalOpen = false }) => {
+const RecorderPanel: React.FC<RecorderPanelProps> = React.memo(({ analyserNode, className = "", isModalOpen = false, layoutMode = 'desktop' }) => {
+    const isMobileLayout = layoutMode === 'mobile';
     const audioContext = analyserNode?.context as AudioContext || null;
     const { isRecording, isPlaying, isLooping, isReversed, hasRecording, recordedTime, playbackTime, playbackSpeed, setPlaybackSpeed, loopRegion, audioBuffer, monoBufferRef, writePointerRef, isRandomLooping, randomLoopRate, statusMessage, startRecording, stopRecording, playRecording, stopPlayback, restartPlayback, toggleLoop, updateLoopRegion, clearLoopRegion, reverseRecording, seek, downloadRawWav, downloadLoopWav, downloadSpeedWav, toggleRandomLoop, setRandomLoopRate, clearStatusMessage } = useRecorder(analyserNode, audioContext);
     
@@ -347,40 +349,65 @@ const RecorderPanel: React.FC<RecorderPanelProps> = React.memo(({ analyserNode, 
                 <PanelTitle>{TEXTS.recorder.title}</PanelTitle>
                 <div className="_t-panel-desc">{TEXTS.recorder.subTitle}</div>
             </div>
-            <div className="flex flex-col md:flex-row justify-between items-center gap-3 mb-6">
-                <div className="flex gap-4 items-center">
-                    <ButtonGroup>
-                        <Button onClick={isRecording ? stopRecording : startRecording} active={isRecording} animate={isRecording} variant="danger" title="RECORD">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill={isRecording ? "#ef4444" : "currentColor"}><circle cx="12" cy="12" r="10" /></svg>
-                        </Button>
-                        <Button onClick={() => isRecording ? stopRecording() : stopPlayback()} disabled={!hasRecording && !isRecording} title="STOP">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" /></svg>
-                        </Button>
-                        <Button onClick={playRecording} disabled={!hasRecording || isRecording} active={isPlaying} title="PLAY">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
-                        </Button>
-                        <Button onClick={restartPlayback} disabled={!hasRecording || isRecording} title="RESET">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" /></svg>
-                        </Button>
-                    </ButtonGroup>
-                    <div className="flex gap-2 pl-4 border-l border-zinc-800 _b-widget">
-                         <Button onClick={toggleLoop} disabled={!hasRecording || isRecording} active={isLooping}>LOOP</Button>
-                         <Button onClick={toggleRandomLoop} disabled={!hasRecording || isRecording} active={isRandomLooping}>RND</Button>
-                         <Button onClick={reverseRecording} disabled={!hasRecording || isRecording} active={isReversed}>REV</Button>
+            <div className={isMobileLayout ? 'flex flex-col gap-3 mb-6' : 'flex flex-col md:flex-row justify-between items-center gap-3 mb-6'}>
+                <div className={isMobileLayout ? 'flex flex-col gap-2 w-full' : 'flex gap-4 items-center'}>
+                    {isMobileLayout ? (
+                        <div className="grid grid-cols-4 gap-2 w-full">
+                            <Button onClick={isRecording ? stopRecording : startRecording} active={isRecording} animate={isRecording} variant="danger" title="RECORD" className="w-full">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill={isRecording ? "#ef4444" : "currentColor"}><circle cx="12" cy="12" r="10" /></svg>
+                            </Button>
+                            <Button onClick={() => isRecording ? stopRecording() : stopPlayback()} disabled={!hasRecording && !isRecording} title="STOP" className="w-full">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" /></svg>
+                            </Button>
+                            <Button onClick={playRecording} disabled={!hasRecording || isRecording} active={isPlaying} title="PLAY" className="w-full">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+                            </Button>
+                            <Button onClick={restartPlayback} disabled={!hasRecording || isRecording} title="RESET" className="w-full">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" /></svg>
+                            </Button>
+                        </div>
+                    ) : (
+                        <ButtonGroup>
+                            <Button onClick={isRecording ? stopRecording : startRecording} active={isRecording} animate={isRecording} variant="danger" title="RECORD">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill={isRecording ? "#ef4444" : "currentColor"}><circle cx="12" cy="12" r="10" /></svg>
+                            </Button>
+                            <Button onClick={() => isRecording ? stopRecording() : stopPlayback()} disabled={!hasRecording && !isRecording} title="STOP">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" /></svg>
+                            </Button>
+                            <Button onClick={playRecording} disabled={!hasRecording || isRecording} active={isPlaying} title="PLAY">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+                            </Button>
+                            <Button onClick={restartPlayback} disabled={!hasRecording || isRecording} title="RESET">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" /></svg>
+                            </Button>
+                        </ButtonGroup>
+                    )}
+                    <div className={isMobileLayout ? 'grid grid-cols-3 gap-2 w-full' : 'flex gap-2 pl-4 border-l border-zinc-800 _b-widget'}>
+                         <Button onClick={toggleLoop} disabled={!hasRecording || isRecording} active={isLooping} className={isMobileLayout ? 'w-full' : ''}>LOOP</Button>
+                         <Button onClick={toggleRandomLoop} disabled={!hasRecording || isRecording} active={isRandomLooping} className={isMobileLayout ? 'w-full' : ''}>RND</Button>
+                         <Button onClick={reverseRecording} disabled={!hasRecording || isRecording} active={isReversed} className={isMobileLayout ? 'w-full' : ''}>REV</Button>
                     </div>
                 </div>
-                <ButtonGroup>
-                    <Button onClick={downloadRawWav} disabled={!hasRecording || isRecording || isPlaying}>{TEXTS.recorder.dlRaw}</Button>
-                    <Button onClick={downloadSpeedWav} disabled={!hasRecording || isRecording || isPlaying}>{TEXTS.recorder.dlSpeed}</Button>
-                    <Button onClick={() => { if(curLoopDur < 0.5 && !suppressShortLoopWarning) setShowShortLoopWarning(true); else downloadLoopWav(); }} disabled={!hasRecording || isRecording || isPlaying || !loopRegion}>{TEXTS.recorder.dlLoop}</Button>
-                </ButtonGroup>
+                {isMobileLayout ? (
+                    <div className="grid grid-cols-1 gap-2 w-full">
+                        <Button onClick={downloadRawWav} disabled={!hasRecording || isRecording || isPlaying} className="w-full">{TEXTS.recorder.dlRaw}</Button>
+                        <Button onClick={downloadSpeedWav} disabled={!hasRecording || isRecording || isPlaying} className="w-full">{TEXTS.recorder.dlSpeed}</Button>
+                        <Button onClick={() => { if(curLoopDur < 0.5 && !suppressShortLoopWarning) setShowShortLoopWarning(true); else downloadLoopWav(); }} disabled={!hasRecording || isRecording || isPlaying || !loopRegion} className="w-full">{TEXTS.recorder.dlLoop}</Button>
+                    </div>
+                ) : (
+                    <ButtonGroup>
+                        <Button onClick={downloadRawWav} disabled={!hasRecording || isRecording || isPlaying}>{TEXTS.recorder.dlRaw}</Button>
+                        <Button onClick={downloadSpeedWav} disabled={!hasRecording || isRecording || isPlaying}>{TEXTS.recorder.dlSpeed}</Button>
+                        <Button onClick={() => { if(curLoopDur < 0.5 && !suppressShortLoopWarning) setShowShortLoopWarning(true); else downloadLoopWav(); }} disabled={!hasRecording || isRecording || isPlaying || !loopRegion}>{TEXTS.recorder.dlLoop}</Button>
+                    </ButtonGroup>
+                )}
             </div>
-            <div className="grid grid-cols-2 mb-4">
-                <div className="border-r border-zinc-800 pr-6 _b-widget">
+            <div className={isMobileLayout ? 'grid grid-cols-1 gap-4 mb-4' : 'grid grid-cols-2 mb-4'}>
+                <div className={isMobileLayout ? 'pb-4 border-b border-zinc-800 _b-widget' : 'border-r border-zinc-800 pr-6 _b-widget'}>
                      <Row><Label>SPEED</Label><Value>{dispSpeed}</Value></Row>
                      <Fader value={playbackSpeed} onChange={setPlaybackSpeed} disabled={!hasRecording || isRecording} />
                 </div>
-                <div className="pl-6">
+                <div className={isMobileLayout ? 'pt-1' : 'pl-6'}>
                      <Row><Label>RND LOOP RATE</Label><Value>{((1024 / (2048 - (randomLoopRate / 1024 * 1800))).toFixed(2)) + " Hz"}</Value></Row>
                      <Fader value={randomLoopRate} onChange={setRandomLoopRate} disabled={!hasRecording || isRecording} />
                 </div>

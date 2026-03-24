@@ -14,6 +14,7 @@ interface SequencerPanelProps {
   id: 1 | 2;
   state: SequencerParams;
   params: SynthState;
+  layoutMode?: 'desktop' | 'mobile';
   currentStep: number;
   updateSeq: LocalSequencerUpdate;
   updateSeqStep: (index: number, value: number) => void;
@@ -27,6 +28,7 @@ interface SequencerPanelProps {
 
 interface VoiceSequencerSectionProps {
   params: SynthState;
+  layoutMode?: 'desktop' | 'mobile';
   currentStep1: number;
   currentStep2: number;
   updateSeq: SequencerUpdate;
@@ -126,7 +128,7 @@ const SequencerStep: React.FC<SequencerStepProps> = React.memo(({
 });
 
 const SequencerPanel: React.FC<SequencerPanelProps> = React.memo(({
-  id, state, params, currentStep, updateSeq, updateSeqStep, toggleSeqGate, toggleSequencer, syncSequencers, manualSeqStep, resetSequencer, randomizePattern
+  id, state, params, layoutMode = 'desktop', currentStep, updateSeq, updateSeqStep, toggleSeqGate, toggleSequencer, syncSequencers, manualSeqStep, resetSequencer, randomizePattern
 }) => {
   const isMaster = id === 1;
   const isDrawingSeq = useRef(false);
@@ -315,9 +317,9 @@ const SequencerPanel: React.FC<SequencerPanelProps> = React.memo(({
             />
           ))}
         </div>
-        <div className="flex justify-between gap-2">
+        <div className={layoutMode === 'mobile' ? 'grid grid-cols-4 gap-2' : 'flex justify-between gap-2'}>
           {state.gates.map((isOn, idx) => (
-            <div key={idx} className="flex-1">
+            <div key={idx} className={layoutMode === 'mobile' ? '' : 'flex-1'}>
               <Button onClick={() => toggleSeqGate(idx)} active={isOn} className="w-full">{TEXTS.seq.gate}</Button>
             </div>
           ))}
@@ -328,7 +330,7 @@ const SequencerPanel: React.FC<SequencerPanelProps> = React.memo(({
 });
 
 const VoiceSequencerSection: React.FC<VoiceSequencerSectionProps> = React.memo(({
-    params, currentStep1, currentStep2, updateSeq, updateSeqStep, toggleSeqGate, toggleSequencer, syncSequencers, manualSeqStep, resetSequencer, randomizePattern
+    params, layoutMode = 'desktop', currentStep1, currentStep2, updateSeq, updateSeqStep, toggleSeqGate, toggleSequencer, syncSequencers, manualSeqStep, resetSequencer, randomizePattern
 }) => {
     const updateSeq1 = useCallback<LocalSequencerUpdate>((k, v) => updateSeq('seq1', k, v), [updateSeq]);
     const updateSeq2 = useCallback<LocalSequencerUpdate>((k, v) => updateSeq('seq2', k, v), [updateSeq]);
@@ -350,12 +352,12 @@ const VoiceSequencerSection: React.FC<VoiceSequencerSectionProps> = React.memo((
             </div>
             <div className="flex flex-col gap-6">
                 <SequencerPanel 
-                    id={1} state={params.seq1} params={params} currentStep={currentStep1} 
+                    id={1} state={params.seq1} params={params} layoutMode={layoutMode} currentStep={currentStep1} 
                     updateSeq={updateSeq1} updateSeqStep={updateSeqStep1} toggleSeqGate={toggleSeqGate1} 
                     toggleSequencer={toggleSequencer} syncSequencers={syncSequencers} manualSeqStep={manualSeqStep1} resetSequencer={resetSeq1} randomizePattern={randomizeSeq1} 
                 />
                 <SequencerPanel 
-                    id={2} state={params.seq2} params={params} currentStep={currentStep2} 
+                    id={2} state={params.seq2} params={params} layoutMode={layoutMode} currentStep={currentStep2} 
                     updateSeq={updateSeq2} updateSeqStep={updateSeqStep2} toggleSeqGate={toggleSeqGate2} 
                     toggleSequencer={toggleSequencer} syncSequencers={syncSequencers} manualSeqStep={manualSeqStep2} resetSequencer={resetSeq2} randomizePattern={randomizeSeq2} 
                 />
